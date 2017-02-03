@@ -1,9 +1,7 @@
-/*
-Ent, short for entity, represents a struct that has a uint64 ID and can be
-Marshaled and Unmarshaled to []byte.
-
-For persistance, ent provides tools to save to a bolt database.
-*/
+// Package ent - short for entity - represents a struct that has a uint64 ID and can be
+// Marshaled and Unmarshaled to []byte.
+//
+// For persistance, ent provides tools to save to a bolt database.
 package ent
 
 /** Indexing **

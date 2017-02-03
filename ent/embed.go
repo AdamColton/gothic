@@ -32,7 +32,7 @@ func Def64(id64 uint64) Ent {
 	return Ent{id}
 }
 
-// Returns the ID, matches Marshaling interfaces.
+// Marshal returns the ID, matches Marshaling interfaces.
 func (ent Ent) Marshal() []byte { return ent.id }
 
 // Unmarshal follows the unmarshalling standard.
