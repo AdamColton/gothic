@@ -10,9 +10,9 @@ import (
 
 func TestEnt(t *testing.T) {
 	p := NewPackage("test")
-	e := p.Ent("Person")
-	e.AddField("Name", gothicgo.StringType)
-	e.AddField("Age", gothicgo.IntType)
+	e := p.Ent("Person").
+		AddField("Name", gothicgo.StringType).
+		AddField("Age", gothicgo.IntType)
 	assert.Equal(t, "*test.PersonRef", e.Ref().String())
 
 	strct := e.GoStruct()

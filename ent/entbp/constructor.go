@@ -16,6 +16,8 @@ func Construct(strct *gothicgo.Struct) *Constructor {
 	return c
 }
 
+// Constructor implements the FragGen interface. It builds the Constructor for
+// the Go Struct.
 type Constructor struct {
 	strct    *gothicgo.Struct
 	name     string

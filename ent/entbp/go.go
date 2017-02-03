@@ -8,6 +8,8 @@ import (
 	"github.com/adamcolton/gothic/serial/serialbp"
 )
 
+// GS is a Go Struct generated from an entity. It includes references to the
+// EntBP, the structs reference type and it's unmarshal function.
 type GS struct {
 	*gothicgo.Struct
 	ent            *EntBP
@@ -88,21 +90,6 @@ func (e *EntBP) GoStruct() *GS {
 		unmarshalEntFn: unmarshalEntFn,
 	}
 
-	gs.registerSerializers()
-
-	return gs
-}
-
-type serializeEntStruct struct {
-	strct *gothicgo.Struct
-	file  *gothicgo.File
-	ent   *EntBP
-}
-
-// We can't generate the serialization when the struct is defined because it may
-// include types that haven't been defined yet. The GS object will handle this
-// during the Prepare stage
-func (gs *GS) registerSerializers() {
 	file := gs.File()
 	ptr := gs.Ptr()
 
@@ -123,6 +110,8 @@ func (gs *GS) registerSerializers() {
 	}.Def())
 
 	file.AddFragGen(gs)
+
+	return gs
 }
 
 const (

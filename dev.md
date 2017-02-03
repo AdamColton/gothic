@@ -108,7 +108,8 @@ Look at demo.
 This turns into a nasty problem quickly. We really want to be able to have Ents
 reference eachother rather than translating to Go structs and reference those.
 But what about non-Ent structs. So Ent really needs a way to define an object
-that isn't an ent.
+that isn't an ent. Consider Date - we'd use the builtin for Go and JavaScript.
+We need a way to define Date at each level (Ent, Go, JS).
 
 I want to keep using the Go type system. Ent needs some type system and the Go
 type system is as good as any, no reason to build a new one. The one place where
