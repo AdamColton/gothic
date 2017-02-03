@@ -1,5 +1,5 @@
 /*
-Gothic is a set of code generation tools.
+Package gothic is a set of code generation tools.
 
 Terminology
 
