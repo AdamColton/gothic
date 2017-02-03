@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-// Adds a Entity Constructor to a Struct
-
 func Construct(strct *gothicgo.Struct) *Constructor {
 	c := &Constructor{
 		strct:    strct,

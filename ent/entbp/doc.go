@@ -1,10 +1,5 @@
-// This package is used for generating Ents. An Ent has a uint64 ID and a
-// Marshal method.
-
-/*
-Package entbp provides the Blueprint functions for defining structs that implement
-ent. Marshal and Unmarshal functions are automatically generated.
-*/
+// Package entbp provides the Blueprint functions for defining structs that
+// implement ent. Marshal and Unmarshal functions are automatically generated.
 package entbp
 
 /*
