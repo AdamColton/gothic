@@ -1,6 +1,6 @@
 package gothic
 
-// FragGen, a fragment generator is a useful interface for sub-generators. They
+// FragGen is a fragment generator is a useful interface for sub-generators. They
 // will return a slice of strings when Generate is called.
 type FragGen interface {
 	Prepare()
@@ -37,13 +37,13 @@ func (fg *FG) AddFragGen(g FragGen) {
 // SliceFG is a helper, it impements the FragGen interface on a string slice
 type SliceFG []string
 
-// Just exists to fulfill the interface, doesn't do anything
+// Prepare just exists to fulfill the interface, doesn't do anything
 func (s SliceFG) Prepare() {}
 
 // Generate returns SliceFG as []string
 func (s SliceFG) Generate() []string { return []string(s) }
 
-// Often, only a single string is required
+// SliceFGFromString takes one or more strings and returns a fragment generator
 func SliceFGFromString(strings ...string) SliceFG {
 	return SliceFG(strings)
 }

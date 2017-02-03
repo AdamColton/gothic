@@ -32,7 +32,7 @@ func (p *Project) Generate() {
 	}
 }
 
-// Export() wraps a call to Prepare() and Generate()
+// Export wraps a call to Prepare() and Generate()
 func (p *Project) Export() {
 	p.Prepare()
 	p.Generate()
