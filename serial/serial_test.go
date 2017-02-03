@@ -1,7 +1,7 @@
 package serial
 
 import (
-	"bytes"
+	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
 )
@@ -10,37 +10,30 @@ var f = rand.Float32
 
 func TestBasicRoundTrip(t *testing.T) {
 	x := uint64(300)
+	expected := []byte{2, 1, 44}
 	b := MarshalUintL(x, 8)
-	expect := []byte{2, 1, 44}
-	if !bytes.Equal(b, expect) {
-		t.Error("Marshal Uint failed")
-	}
+	assert.Equal(t, expected, b)
+	assert.Equal(t, x, UnmarshalUintL(&b, 8))
+}
 
-	y := UnmarshalUintL(&b, 8)
-	if y != 300 {
-		t.Error(y)
-		t.Error("Unmarshal Uint failed")
-	}
+func TestBasicRoundTripFixed(t *testing.T) {
+	x := uint64(300)
+	b := MarshalFixedUintL(x, 8)
+	expected := []byte{0, 0, 0, 0, 0, 0, 1, 44}
+	assert.Equal(t, expected, b)
+	assert.Equal(t, x, UnmarshalFixedUintL(&b, 8))
 }
 
 func TestUint64ToByteRoundTrip(t *testing.T) {
 	x := uint64(511)
 	b := MarshalUint64(x)
-
-	y := UnmarshalUint64(&b)
-	if x != y {
-		t.Error("should be equal")
-	}
+	assert.Equal(t, x, UnmarshalUint64(&b))
 }
 
 func TestUint64ZeroToByteRoundTrip(t *testing.T) {
 	x := uint64(0)
 	b := MarshalUint64(x)
-
-	y := UnmarshalUint64(&b)
-	if x != y {
-		t.Error("should be equal")
-	}
+	assert.Equal(t, x, UnmarshalUint64(&b))
 }
 
 func TestByteSliceRoundTrip(t *testing.T) {
@@ -50,9 +43,7 @@ func TestByteSliceRoundTrip(t *testing.T) {
 	copy(long_be, be)
 	b_out := UnmarshalByteSlice(&long_be)
 	s := string(b_out)
-	if s != "Hello, world!" {
-		t.Error("Byte slice Round trip failed" + s)
-	}
+	assert.Equal(t, "Hello, world!", s, "Byte slice Round trip failed")
 }
 
 func TestInt16RoundTrip(t *testing.T) {
@@ -138,5 +129,133 @@ func TestInt16MinRoundTripMany(t *testing.T) {
 		t.Error(i)
 		t.Error(i_out)
 		t.Error("Int Round trip failed")
+	}
+}
+
+func TestIntFixedRoundTrip(t *testing.T) {
+	numbers := []int{-3141, 12345, 0, 1}
+	for _, i := range numbers {
+		b := MarshalIntFixed(i)
+		if len(b) != 8 {
+			t.Error("Wrong Length")
+		}
+		i_out := UnmarshalIntFixed(&b)
+		if i_out != i {
+			t.Error(i)
+			t.Error(i_out)
+			t.Error("Int Fixed Round trip failed")
+		}
+	}
+}
+
+func TestInt16FixedRoundTrip(t *testing.T) {
+	numbers := []int16{-3141, 12345, 0, 1}
+	for _, i := range numbers {
+		b := MarshalInt16Fixed(i)
+		if len(b) != 2 {
+			t.Error("Wrong Length")
+		}
+		i_out := UnmarshalInt16Fixed(&b)
+		if i_out != i {
+			t.Error(i)
+			t.Error(i_out)
+			t.Error("Int16 Fixed Round trip failed")
+		}
+	}
+}
+
+func TestInt32FixedRoundTrip(t *testing.T) {
+	numbers := []int32{-3141, 12345, 0, 1, 1234567, -1234567}
+	for _, i := range numbers {
+		b := MarshalInt32Fixed(i)
+		if len(b) != 4 {
+			t.Error("Wrong Length")
+		}
+		i_out := UnmarshalInt32Fixed(&b)
+		if i_out != i {
+			t.Error(i)
+			t.Error(i_out)
+			t.Error("Int32 Fixed Round trip failed")
+		}
+	}
+}
+
+func TestInt64FixedRoundTrip(t *testing.T) {
+	numbers := []int64{-3141, 12345, 0, 1, 1234567, -1234567, 1234567890, -1234567890}
+	for _, i := range numbers {
+		b := MarshalInt64Fixed(i)
+		if len(b) != 8 {
+			t.Error("Wrong Length")
+		}
+		i_out := UnmarshalInt64Fixed(&b)
+		if i_out != i {
+			t.Error(i)
+			t.Error(i_out)
+			t.Error("Int64 Fixed Round trip failed")
+		}
+	}
+}
+
+func TestUintFixedRoundTrip(t *testing.T) {
+	numbers := []uint{3141, 12345, 0, 1}
+	for _, i := range numbers {
+		b := MarshalUintFixed(i)
+		if len(b) != 8 {
+			t.Error("Wrong Length")
+		}
+		i_out := UnmarshalUintFixed(&b)
+		if i_out != i {
+			t.Error(i)
+			t.Error(i_out)
+			t.Error("Uint Fixed Round trip failed")
+		}
+	}
+}
+
+func TestUint16FixedRoundTrip(t *testing.T) {
+	numbers := []uint16{3141, 12345, 0, 1}
+	for _, i := range numbers {
+		b := MarshalUint16Fixed(i)
+		if len(b) != 2 {
+			t.Error("Wrong Length")
+		}
+		i_out := UnmarshalUint16Fixed(&b)
+		if i_out != i {
+			t.Error(i)
+			t.Error(i_out)
+			t.Error("Uint16 Fixed Round trip failed")
+		}
+	}
+}
+
+func TestUint32FixedRoundTrip(t *testing.T) {
+	numbers := []uint32{3141, 12345, 0, 1, 1234567}
+	for _, i := range numbers {
+		b := MarshalUint32Fixed(i)
+		if len(b) != 4 {
+			t.Error("Wrong Length")
+		}
+		i_out := UnmarshalUint32Fixed(&b)
+		if i_out != i {
+			t.Error(i)
+			t.Error(i_out)
+			t.Error("Uint32 Fixed Round trip failed")
+		}
+	}
+}
+
+func TestUint64FixedRoundTrip(t *testing.T) {
+	numbers := []uint64{3141, 12345, 0, 1, 1234567, 1234567890}
+	for _, i := range numbers {
+		b := MarshalUint64Fixed(i)
+		if len(b) != 8 {
+			t.Error("Wrong Length")
+		}
+		i_out := UnmarshalUint64Fixed(&b)
+		if i_out != i {
+			t.Error(i)
+			t.Error(i_out)
+			t.Error("Uint64 Fixed Round trip failed")
+		}
 	}
 }

@@ -92,3 +92,26 @@ func UnmarshalByteSlice(b *[]byte) []byte {
 	*b = (*b)[l:]
 	return ret
 }
+
+// MarshalFixedUintL encodes a uint64 as []byte
+// the slice will always be length ln
+func MarshalFixedUintL(i uint64, ln byte) []byte {
+	b := make([]byte, ln) //bytes buffer
+	for p := byte(ln - 1); p != 255; p-- {
+		b[p] = byte(i)
+		i >>= 8
+	}
+	return b
+}
+
+// UnmarshalFixedUintL decodes a uint64 from a byte slice. It will always use
+// ln bytes.
+func UnmarshalFixedUintL(b *[]byte, ln byte) uint64 {
+	u := uint64(0)
+	for i := byte(0); i < ln; i++ {
+		u <<= 8
+		u |= uint64((*b)[i])
+	}
+	*b = (*b)[ln:]
+	return u
+}

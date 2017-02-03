@@ -30,6 +30,26 @@ func UnmarshalString(b *[]byte) string { return string(UnmarshalByteSlice(b)) }
 func MarshalFloat32(f float32) []byte { return MarshalUint32(*(*uint32)(unsafe.Pointer(&f))) }
 func MarshalFloat64(f float64) []byte { return MarshalUint64(*(*uint64)(unsafe.Pointer(&f))) }
 
+func MarshalIntFixed(i int) []byte     { return MarshalFixedUintL(uint64(uint(i)), 8) }
+func MarshalInt16Fixed(i int16) []byte { return MarshalFixedUintL(uint64(uint16(i)), 2) }
+func MarshalInt32Fixed(i int32) []byte { return MarshalFixedUintL(uint64(uint32(i)), 4) }
+func MarshalInt64Fixed(i int64) []byte { return MarshalFixedUintL(uint64(i), 8) }
+
+func UnmarshalIntFixed(b *[]byte) int     { return int(UnmarshalFixedUintL(b, 8)) }
+func UnmarshalInt16Fixed(b *[]byte) int16 { return int16(UnmarshalFixedUintL(b, 2)) }
+func UnmarshalInt32Fixed(b *[]byte) int32 { return int32(UnmarshalFixedUintL(b, 4)) }
+func UnmarshalInt64Fixed(b *[]byte) int64 { return int64(UnmarshalFixedUintL(b, 8)) }
+
+func MarshalUintFixed(i uint) []byte     { return MarshalFixedUintL(uint64(i), 8) }
+func MarshalUint16Fixed(i uint16) []byte { return MarshalFixedUintL(uint64(i), 2) }
+func MarshalUint32Fixed(i uint32) []byte { return MarshalFixedUintL(uint64(i), 4) }
+func MarshalUint64Fixed(i uint64) []byte { return MarshalFixedUintL(uint64(i), 8) }
+
+func UnmarshalUintFixed(b *[]byte) uint     { return uint(UnmarshalFixedUintL(b, 8)) }
+func UnmarshalUint16Fixed(b *[]byte) uint16 { return uint16(UnmarshalFixedUintL(b, 2)) }
+func UnmarshalUint32Fixed(b *[]byte) uint32 { return uint32(UnmarshalFixedUintL(b, 4)) }
+func UnmarshalUint64Fixed(b *[]byte) uint64 { return UnmarshalFixedUintL(b, 8) }
+
 func UnmarshalFloat32(b *[]byte) float32 {
 	i := UnmarshalUint32(b)
 	return *(*float32)(unsafe.Pointer(&i))
