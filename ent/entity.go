@@ -8,6 +8,6 @@ type Entity interface {
 	Marshal() []byte
 }
 
-// Unmarshaler is a functino that takes a pointer to a byte slice and returns
+// Unmarshaler is a function that takes a pointer to a byte slice and returns
 // an entity. Using a pointer makes it easier to recursivly unmarshal.
 type Unmarshaler func(*[]byte) Entity

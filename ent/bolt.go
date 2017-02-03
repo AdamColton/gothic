@@ -7,11 +7,17 @@ import (
 	"unsafe"
 )
 
+// BucketID is the ID used for the entities bucket
 var BucketID = []byte("entities")
+
+// FileName is the filename used for the entities database
 var FileName = "entities.db"
+
 var weakmap = make(map[uint64]uintptr)
 var db *bolt.DB
 
+// Get returns an Entity by ID. It will first check if there is a reference to
+// the entity is use and if not, it will hydrate the entity from the database
 func Get(id []byte, ent *Entity, unmarshal Unmarshaler) {
 	if entPtr, ok := weakmap[CRC64(id)]; ok {
 		*ent = *((*Entity)(unsafe.Pointer(entPtr)))
@@ -39,6 +45,8 @@ func Get(id []byte, ent *Entity, unmarshal Unmarshaler) {
 	}
 }
 
+// Register must be called when an entity is first created. Once Register is
+// called, the entity will automatically be saved when it is garbage collected.
 func Register(ent Entity) {
 	crcID := CRC64(ent.ID())
 	if _, ok := weakmap[crcID]; !ok {
@@ -48,10 +56,15 @@ func Register(ent Entity) {
 }
 
 func finalizerRemove(ent Entity) {
-	delete(weakmap, CRC64(ent.ID()))
-	go Store(ent)
+	id := CRC64(ent.ID())
+	if _, ok := weakmap[id]; ok {
+		delete(weakmap, id)
+		go Store(ent)
+	}
 }
 
+// SaveAll will save all the entities that are currently active. This can be
+// expensive.
 func SaveAll() {
 	var ent Entity
 	for _, ptr := range weakmap {
@@ -60,6 +73,8 @@ func SaveAll() {
 	}
 }
 
+// Store saves an entity to the database. The reference to the entity is still
+// valid.
 func Store(ent Entity) {
 	Register(ent)
 	if db == nil {
@@ -80,6 +95,7 @@ func Store(ent Entity) {
 	})
 }
 
+// Delete removes the entity from the database and prevents it from
 func Delete(ent Entity) {
 	if db == nil {
 		db, _ = bolt.Open(FileName, 0644, nil)
@@ -97,4 +113,8 @@ func Delete(ent Entity) {
 		}
 		return nil
 	})
+	id64 := CRC64(id)
+	if _, ok := weakmap[id64]; ok {
+		delete(weakmap, id64)
+	}
 }

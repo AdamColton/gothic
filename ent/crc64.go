@@ -7,7 +7,8 @@ import (
 
 var tablePolynomial = crc64.MakeTable(crc64.ISO)
 
-// Returns the CRC64 value of a byte slice using the CRC64 ISO poly
+// CRC64 returns the a uint64 value of a byte slice using the CRC64 ISO poly.
+// This was chosen as the weakmap key for it's speed and size.
 func CRC64(b []byte) uint64 {
 	hash := crc64.New(tablePolynomial)
 	hash.Write(b)
