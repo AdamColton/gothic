@@ -16,43 +16,59 @@ import (
 // io.WriteCloser, it will write to that instead
 type File struct {
 	*Imports
-	fg      *gothic.FG
-	name    string
-	code    []string
-	pkg     *Package
-	Writer  io.WriteCloser
-	Comment string
+	generators *gothic.Project
+	name       string
+	code       []string
+	pkg        *Package
+	Writer     io.WriteCloser
+	Comment    string
 }
 
-func (f *File) Prepare()                     { f.fg.Prepare() }
-func (f *File) AddFragGen(fg gothic.FragGen) { f.fg.AddFragGen(fg) }
-func (f *File) AddCode(code ...string)       { f.fg.AddFragGen(gothic.SliceFG(code)) }
+func (f *File) Prepare() error { return f.generators.Prepare() }
 
-func (f *File) Generate() {
+func (f *File) AddGenerators(generators ...gothic.Generator) {
+	f.generators.AddGenerators(generators...)
+}
+
+func (f *File) AddCode(code ...string) { f.code = append(f.code, code...) }
+
+func (f *File) Generate() error {
 	f.Imports.ResolvePackages(f.Package().ImportResolver())
 	f.Imports.RemovePath(f.pkg.ImportPath)
-	s := []string{
+
+	err := f.generators.Generate()
+	if err != nil {
+		return err
+	}
+
+	s := append([]string{
 		BuildComment(f.Comment, CommentWidth),
 		"package " + f.pkg.Name + "\n",
 		f.Imports.String(),
-	}
-
-	s = append(s, f.fg.Generate()...)
+	}, f.code...)
 
 	code := []byte(strings.Join(s, "\n"))
-	fmtCode, err := format.Source(code)
+	fmtCode, fmtErr := format.Source(code)
 
 	wc := f.Writer
 	if wc == nil {
-		wc = f.open()
+		wc, err = f.open()
+		if err != nil {
+			return err
+		}
 	}
-	if err == nil {
-		wc.Write(fmtCode)
+
+	if fmtErr == nil {
+		_, err = wc.Write(fmtCode)
 	} else {
-		wc.Write(code)
-		fmt.Println("Failed to format", f.pkg.Name+"/"+f.name+".go ", err)
+		_, err = wc.Write(code)
+		fmt.Println("Failed to format", f.pkg.Name+"/"+f.name+".go ", fmtErr)
 	}
-	wc.Close()
+	if err != nil {
+		wc.Close()
+		return err
+	}
+	return wc.Close()
 }
 
 // Takes the file name without ".go"
@@ -61,27 +77,23 @@ func (p *Package) File(name string) *File {
 		return file
 	}
 	f := &File{
-		Imports: NewImports(),
-		fg:      &gothic.FG{},
-		name:    name,
-		pkg:     p,
-		Comment: p.Comment,
+		Imports:    NewImports(),
+		generators: gothic.New(),
+		name:       name,
+		pkg:        p,
+		Comment:    p.Comment,
 	}
 	p.files[name] = f
 	return f
 }
 
-func (f *File) open() io.WriteCloser {
+func (f *File) open() (io.WriteCloser, error) {
 	pth := path.Join(f.pkg.OutputPath, f.name+".go")
-	pth, e := filepath.Abs(pth)
-	if e != nil {
-		panic(e)
+	pth, err := filepath.Abs(pth)
+	if err != nil {
+		return nil, err
 	}
-	wc, e := os.Create(pth)
-	if e != nil {
-		panic(e)
-	}
-	return wc
+	return os.Create(pth)
 }
 
 // Returns the package

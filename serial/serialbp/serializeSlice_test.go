@@ -8,12 +8,13 @@ import (
 )
 
 func TestSerializeSlice(t *testing.T) {
+	ctx := New()
 	typ := gothicgo.SliceOf(gothicgo.IntType)
-	serialDef := serializeSliceFunc(typ)
-	assert.Equal(t, SerialHelperPackage, serialDef.PackageName())
+	_, err := ctx.serializeSliceFunc(typ)
+	assert.NoError(t, err)
 
 	wc := sai.New()
-	f := serialHelperPackage().File("serial.gothic")
+	f := ctx.GetPkg().File("serial.gothic")
 	f.Writer = wc
 	f.Prepare()
 	f.Generate()
@@ -22,15 +23,12 @@ func TestSerializeSlice(t *testing.T) {
 		"DO NOT MODIFY",
 		"package serialHelpers",
 		"github.com/adamcolton/gothic/serial",
-		"func MarshalSliceint(s []int) []byte",
-		"func UnmarshalSliceint(b *[]byte) []int",
+		"func MarshalSliceOfint(s []int) []byte",
+		"func UnmarshalSliceOfint(b *[]byte) []int",
 	}
 
 	got := wc.String()
 	for _, str := range expectStrs {
 		assert.Contains(t, got, str)
 	}
-
-	// clear serial helper package for other tests
-	shp = nil
 }

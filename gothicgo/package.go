@@ -24,28 +24,36 @@ func NewPackage(name string) *Package {
 		files:      map[string]*File{},
 		Comment:    DefaultComment,
 	}
-	packages.AddGenerator(pkg)
+	packages.AddGenerators(pkg)
 	return pkg
 }
 
-func (p *Package) Prepare() {
+func (p *Package) Prepare() error {
 	if p.Name != "main" {
 		p.ImportResolver().Add(p.Name, p.ImportPath)
 	}
 	for _, f := range p.files {
-		f.Prepare()
+		err := f.Prepare()
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (p *Package) Generate() {
+func (p *Package) Generate() error {
 	path, _ := filepath.Abs(p.OutputPath)
 	e := os.MkdirAll(path, 0777)
 	if e != nil {
-		panic(e)
+		return e
 	}
 	for _, f := range p.files {
-		f.Generate()
+		err := f.Generate()
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (p *Package) ImportResolver() ImportResolver {

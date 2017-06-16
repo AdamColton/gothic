@@ -8,12 +8,13 @@ import (
 )
 
 func TestSerializePtr(t *testing.T) {
+	ctx := New()
 	typ := gothicgo.PointerTo(gothicgo.IntType)
-	serialDef := serializePtrFunc(typ)
-	assert.Equal(t, SerialHelperPackage, serialDef.PackageName())
+	_, err := ctx.serializePtrFunc(typ)
+	assert.NoError(t, err)
 
 	wc := sai.New()
-	f := serialHelperPackage().File("serial.gothic")
+	f := ctx.GetPkg().File("serial.gothic")
 	f.Writer = wc
 	f.Prepare()
 	f.Generate()
@@ -30,7 +31,4 @@ func TestSerializePtr(t *testing.T) {
 	for _, str := range expectStrs {
 		assert.Contains(t, got, str)
 	}
-
-	// clear serial helper package for other tests
-	shp = nil
 }

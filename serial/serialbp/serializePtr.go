@@ -19,37 +19,40 @@ func %s(b *[]byte) %s {
 }`
 )
 
-func serializePtrFunc(t gothicgo.PointerType) gothicserial.SerializeDef {
+func (ctx *Context) serializePtrFunc(t gothicgo.PointerType) (gothicserial.SerializeDef, error) {
 	ts := t.String()
 
-	fName := getName(ts)
+	fName := ctx.GetName(t)
 	marshalFuncName := "Marshal" + fName
 	unmarshalFuncName := "Unmarshal" + fName
 
-	subSerial := Serialize(t.Elem())
+	subSerial, err := ctx.Serialize(t.Elem())
+	if err != nil {
+		return nil, err
+	}
 	file := subSerial.File()
 	if file == nil {
-		file = serialHelperPackage().File("serial.gothic")
+		file = ctx.GetPkg().File("serial.gothic")
 	}
+	pkg := file.Package()
 
 	sf := &gothicserial.SerializeFuncs{
-		MarshalStr:   SerialHelperPackage + "." + marshalFuncName + "(%s)",
-		UnmarshalStr: SerialHelperPackage + "." + unmarshalFuncName + "(%s)",
+		MarshalStr:   pkg.Name + "." + marshalFuncName + "(%s)",
+		UnmarshalStr: pkg.Name + "." + unmarshalFuncName + "(%s)",
 		F:            file,
 		Marshaler:    gothicserial.PrependPkgMarshal,
 		Unmarshaler:  gothicserial.PrependPkgUnmarshal,
 	}
-	gothicserial.RegisterSerializeDef(ts, sf)
+	ctx.Register(t, sf)
 
-	pkgName := file.Package().Name
-	ts = t.RelStr(pkgName)
+	ts = t.RelStr(pkg.Name)
 
 	file.AddCode(
-		fmt.Sprintf(marshalPtrTemplate, marshalFuncName, ts, subSerial.Marshal("*s", pkgName)),
-		fmt.Sprintf(unmarshalPtrTemplate, unmarshalFuncName, ts, subSerial.Unmarshal("b", pkgName)),
+		fmt.Sprintf(marshalPtrTemplate, marshalFuncName, ts, subSerial.Marshal("*s", pkg.Name)),
+		fmt.Sprintf(unmarshalPtrTemplate, unmarshalFuncName, ts, subSerial.Unmarshal("b", pkg.Name)),
 	)
 
 	file.AddPackageImport(subSerial.PackageName())
 
-	return sf
+	return sf, nil
 }

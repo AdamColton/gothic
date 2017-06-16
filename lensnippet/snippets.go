@@ -21,7 +21,7 @@ type Snippet interface {
 // arbitrary scope.
 type SnippetInstance interface {
 	Set(key, val string)
-	FragGen
+	Generator
 }
 
 // SC implements SnippetContainer.

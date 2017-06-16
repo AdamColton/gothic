@@ -2,18 +2,18 @@ package gothicgo
 
 import (
 	"fmt"
-	"github.com/adamcolton/gothic"
 	"go/format"
 	"strings"
 )
 
 type Struct struct {
-	name       string
-	file       *File
-	fields     map[string]*Field
-	fieldOrder []string
-	methods    map[string]*Method
-	litMethods bool
+	name         string
+	file         *File
+	fields       map[string]*Field
+	fieldOrder   []string
+	methods      map[string]*Method
+	litMethods   bool
+	ReceiverName string
 }
 
 // Adds a Struct to a Package, the file for the struct is automatically
@@ -25,12 +25,13 @@ func (p *Package) NewStruct(name string) *Struct {
 // Adds a new Struct to an existing file
 func (f *File) NewStruct(name string) *Struct {
 	s := &Struct{
-		name:    name,
-		file:    f,
-		fields:  make(map[string]*Field),
-		methods: make(map[string]*Method),
+		name:         name,
+		file:         f,
+		fields:       make(map[string]*Field),
+		methods:      make(map[string]*Method),
+		ReceiverName: strings.ToLower(string([]rune(name)[0])),
 	}
-	f.AddFragGen(s)
+	f.AddGenerators(s)
 	return s
 }
 
@@ -53,24 +54,33 @@ func (s *Struct) AsArg(name string) *NameType { return Arg(name, PointerTo(&sT{s
 // method as a named return.
 func (s *Struct) AsNmRet(name string) *NameType { return NmRet(name, PointerTo(&sT{s})) }
 
-// Getter for the file. Receiver methods can be added to the file or the Package
-// can be accessed through the file and receivers can be added to other files
-// in the Package.
-func (s *Struct) File() *File         { return s.file }
-func (s *Struct) Name() string        { return s.name }
+// File getter. Receiver methods can be added to the file or the Package can be
+// accessed through the file and receivers can be added to other files in the
+// Package.
+func (s *Struct) File() *File { return s.file }
+
+// Name of the struct
+func (s *Struct) Name() string { return s.name }
+
+// PackageName gets the name of the package.
 func (s *Struct) PackageName() string { return s.file.Package().Name }
 
+// Field returns a field by name
 func (s *Struct) Field(name string) (*Field, bool) {
 	f, ok := s.fields[name]
 	return f, ok
 }
 
+// Fields returns the fields in order. Do not modify this list.
 func (s *Struct) Fields() []string { return s.fieldOrder }
 
-func (s *Struct) AddField(name string, typ Type) *Field {
+func (s *Struct) AddField(name string, typ Type) (*Field, error) {
 	key := name
 	if name == "" {
 		key = typ.Name()
+	}
+	if f, exists := s.fields[key]; exists {
+		return f, fmt.Errorf("Field %s already exists in %s", key, s.name)
 	}
 	f := &Field{
 		nameType: &NameType{
@@ -79,14 +89,14 @@ func (s *Struct) AddField(name string, typ Type) *Field {
 		},
 		tags: map[string]string{},
 		stct: s.Type(),
-		SC:   gothic.NewSC(),
+		//SC:   gothic.NewSC(),
 	}
 	s.fields[key] = f
 	s.fieldOrder = append(s.fieldOrder, key)
-	return f
+	return f, nil
 }
 
-func (s *Struct) Embed(typ Type) *Field {
+func (s *Struct) Embed(typ Type) (*Field, error) {
 	return s.AddField("", typ)
 }
 
@@ -107,14 +117,16 @@ func (s *Struct) String() string {
 	return string(b)
 }
 
-func (s *Struct) Prepare() {
+func (s *Struct) Prepare() error {
 	for _, f := range s.fields {
 		s.file.AddPackageImport(f.Type().PackageName())
 	}
+	return nil
 }
 
-func (s *Struct) Generate() []string {
-	return []string{s.str()}
+func (s *Struct) Generate() error {
+	s.file.AddCode(s.str())
+	return nil
 }
 
 func (s *Struct) PtrMethods(b bool) { s.litMethods = !b }
@@ -122,12 +134,12 @@ func (s *Struct) PtrMethods(b bool) { s.litMethods = !b }
 func (s *Struct) NewMethod(name string, args ...*NameType) *Method {
 	m := &Method{
 		Ptr:          !s.litMethods,
-		ReceiverName: strings.ToLower(string([]rune(s.name)[0])), // lower case, first char
+		ReceiverName: s.ReceiverName,
 		strct:        s,
 		Func:         NewFunc(name, args...),
 	}
 	m.Func.File = s.File()
-	s.File().AddFragGen(m)
+	s.File().AddGenerators(m)
 	s.methods[name] = m
 	return m
 }
@@ -143,7 +155,7 @@ type Field struct {
 	stct     interface { // this makes Field easier to test
 		PackageName() string
 	}
-	*gothic.SC
+	// *gothic.SC
 }
 
 func (f *Field) Name() string { return f.nameType.Name() }
@@ -234,6 +246,12 @@ type Method struct {
 	strct        *Struct
 }
 
+func (m *Method) SetName(name string) {
+	delete(m.strct.methods, m.Func.GetName())
+	m.Func.SetName(name)
+	m.strct.methods[name] = m
+}
+
 // String outputs the entire function as a string
 func (m *Method) String() string {
 	s := make([]string, 13)
@@ -246,7 +264,7 @@ func (m *Method) String() string {
 	}
 	s[3] = m.strct.Name()
 	s[4] = ") "
-	s[5] = m.Func.Name
+	s[5] = m.Func.GetName()
 	s[6] = "("
 	s[7] = nameTypeSliceToString(m.Func.Args, m.strct.PackageName(), m.Func.Variadic)
 	if l := len(m.Func.Rets); l > 1 || (l == 1 && m.Func.Rets[0].N != "") {
@@ -262,6 +280,7 @@ func (m *Method) String() string {
 	return strings.Join(s, "")
 }
 
-func (m *Method) Generate() []string {
-	return []string{m.String()}
+func (m *Method) Generate() error {
+	m.strct.file.AddCode(m.String())
+	return nil
 }

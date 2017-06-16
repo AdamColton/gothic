@@ -2,8 +2,5 @@
 
 [![GoDoc](https://godoc.org/github.com/AdamColton/gothic/ent?status.svg)](https://godoc.org/github.com/AdamColton/gothic/ent)
 
-### TODO
-Weakmap is not threadsafe.
-
-For Ent, we don't really need crypto level randomness. It might be better to
-use crypto/rand to seed a simpler random generator.
+This is temporary holding. Eventually Ent will refer to a struct with an ID and
+provide wrappers for a weakmap and to use bolt as storage.

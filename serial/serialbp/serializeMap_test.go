@@ -8,14 +8,15 @@ import (
 )
 
 func TestSerializeMap(t *testing.T) {
-	serialHelperPackage().ImportResolver().Add("serial", "github.com/adamcolton/gothic/serial")
+	ctx := New()
+	ctx.GetPkg().ImportResolver().Add("serial", "github.com/adamcolton/gothic/serial")
 
 	typ := gothicgo.MapOf(gothicgo.StringType, gothicgo.IntType)
-	serialDef := serializeMapFunc(typ)
-	assert.Equal(t, SerialHelperPackage, serialDef.PackageName())
+	_, err := ctx.serializeMapFunc(typ)
+	assert.NoError(t, err)
 
 	wc := sai.New()
-	f := serialHelperPackage().File("serial.gothic")
+	f := ctx.GetPkg().File("serial.gothic")
 	f.Package().ImportResolver()
 	f.Writer = wc
 	f.Prepare()
@@ -23,14 +24,11 @@ func TestSerializeMap(t *testing.T) {
 
 	expectStrs := []string{
 		"github.com/adamcolton/gothic/serial",
-		"func Marshalmapstringint(s map[string]int) []byte",
-		"func Unmarshalmapstringint(b *[]byte) map[string]int",
+		"func MarshalMapstringToint(s map[string]int) []byte",
+		"func UnmarshalMapstringToint(b *[]byte) map[string]int",
 	}
 	got := wc.String()
 	for _, str := range expectStrs {
 		assert.Contains(t, got, str)
 	}
-
-	// clear serial helper package for other tests
-	shp = nil
 }

@@ -10,20 +10,21 @@ type testGen struct {
 	generated bool
 }
 
-func (t *testGen) Prepare() {
+func (t *testGen) Prepare() error {
 	t.prepared = true
+	return nil
 }
 
-func (t *testGen) Generate() {
+func (t *testGen) Generate() error {
 	t.generated = true
-
+	return nil
 }
 
 func TestGenerator(t *testing.T) {
 	tg := &testGen{}
 	p := New()
 
-	p.AddGenerator(tg)
+	p.AddGenerators(tg)
 	assert.False(t, tg.prepared, "tg.prepared should be false")
 	assert.False(t, tg.generated, "tg.prepared should be false")
 

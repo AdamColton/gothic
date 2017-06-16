@@ -7,6 +7,7 @@ import (
 )
 
 func TestRegisterSerializeDef(t *testing.T) {
+	ctx := New()
 	p := gothicgo.NewPackage("test")
 	sd := SerializeFuncs{
 		MarshalStr:   "test",
@@ -16,8 +17,7 @@ func TestRegisterSerializeDef(t *testing.T) {
 		Marshaler:    SimpleMarhsal,
 		Unmarshaler:  SimpleUnmarhsal,
 	}
-	RegisterSerializeDef("test", sd.Def())
-	d, ok := GetSerializeDef("test")
-	assert.True(t, ok)
+	ctx.Register(gothicgo.IntType, sd.Def())
+	d := ctx.Get(gothicgo.IntType)
 	assert.Equal(t, sd.Marshal("a", "pkg"), d.Marshal("a", "pkg"))
 }

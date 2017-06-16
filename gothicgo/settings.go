@@ -18,7 +18,7 @@ func Generate() { packages.Generate() }
 func Export()   { packages.Export() }
 
 func init() {
-	gothic.AddGenerator(packages)
+	gothic.AddGenerators(packages)
 }
 
 func BuildComment(comment string, width int) string {

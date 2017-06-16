@@ -28,43 +28,50 @@ func %s(b *[]byte) %s {
 }`
 )
 
-func serializeMapFunc(t gothicgo.MapType) gothicserial.SerializeDef {
+func (ctx *Context) serializeMapFunc(t gothicgo.MapType) (gothicserial.SerializeDef, error) {
 	ts := t.String()
 
-	fName := getName(ts)
+	fName := ctx.GetName(t)
 	marshalFuncName := "Marshal" + fName
 	unmarshalFuncName := "Unmarshal" + fName
 
-	keySerial := Serialize(t.Key())
-	valSerial := Serialize(t.Elem())
+	keySerial, err := ctx.Serialize(t.Key())
+	if err != nil {
+		return nil, err
+	}
+	valSerial, err := ctx.Serialize(t.Elem())
+	if err != nil {
+		return nil, err
+	}
 	file := keySerial.File()
 	if file == nil {
 		if p := valSerial.File(); p != nil {
 			file = p
 		} else {
-			file = serialHelperPackage().File("serial.gothic")
+			file = ctx.GetPkg().File("serial.gothic")
 		}
 	}
 
+	pkg := file.Package()
+
 	sf := &gothicserial.SerializeFuncs{
-		MarshalStr:   SerialHelperPackage + "." + marshalFuncName + "(%s)",
-		UnmarshalStr: SerialHelperPackage + "." + unmarshalFuncName + "(%s)",
+		MarshalStr:   pkg.Name + "." + marshalFuncName + "(%s)",
+		UnmarshalStr: pkg.Name + "." + unmarshalFuncName + "(%s)",
 		F:            file,
 		Marshaler:    gothicserial.PrependPkgMarshal,
 		Unmarshaler:  gothicserial.PrependPkgUnmarshal,
 	}
-	gothicserial.RegisterSerializeDef(ts, sf)
+	ctx.Register(t, sf)
 
-	pkgName := file.Package().Name
-	ts = t.RelStr(pkgName)
+	ts = t.RelStr(pkg.Name)
 
 	file.AddCode(
-		fmt.Sprintf(marshalMapTemplate, marshalFuncName, ts, keySerial.Marshal("k", pkgName), valSerial.Marshal("v", pkgName)),
-		fmt.Sprintf(unmarshalMapTemplate, unmarshalFuncName, ts, t.Key().Name(), t.Elem().Name(), keySerial.Unmarshal("b", pkgName), valSerial.Unmarshal("b", pkgName)),
+		fmt.Sprintf(marshalMapTemplate, marshalFuncName, ts, keySerial.Marshal("k", pkg.Name), valSerial.Marshal("v", pkg.Name)),
+		fmt.Sprintf(unmarshalMapTemplate, unmarshalFuncName, ts, t.Key().Name(), t.Elem().Name(), keySerial.Unmarshal("b", pkg.Name), valSerial.Unmarshal("b", pkg.Name)),
 	)
 
 	file.AddPackageImport(keySerial.PackageName())
 	file.AddPackageImport(valSerial.PackageName())
 
-	return sf
+	return sf, nil
 }

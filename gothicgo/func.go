@@ -7,7 +7,7 @@ import (
 // Func represents a Go function
 type Func struct {
 	*Imports
-	Name     string
+	name     string
 	Args     []*NameType
 	Rets     []*NameType
 	Body     string
@@ -19,7 +19,7 @@ type Func struct {
 func NewFunc(name string, args ...*NameType) *Func {
 	return &Func{
 		Imports: NewImports(),
-		Name:    name,
+		name:    name,
 		Args:    args,
 	}
 }
@@ -27,13 +27,16 @@ func NewFunc(name string, args ...*NameType) *Func {
 func (f *File) NewFunc(name string, args ...*NameType) *Func {
 	fn := &Func{
 		Imports: NewImports(),
-		Name:    name,
+		name:    name,
 		Args:    args,
 		File:    f,
 	}
-	f.AddFragGen(fn)
+	f.AddGenerators(fn)
 	return fn
 }
+
+func (f *Func) GetName() string     { return f.name }
+func (f *Func) SetName(name string) { f.name = name }
 
 // Returns sets the returns on a Func
 func (f *Func) Returns(rets ...*NameType) { f.Rets = rets }
@@ -63,7 +66,7 @@ func (f *Func) String() string {
 
 	s := make([]string, 9)
 	s[0] = "func "
-	s[1] = f.Name
+	s[1] = f.name
 	s[2] = "("
 	s[3] = nameTypeSliceToString(f.Args, pkgName, f.Variadic)
 	if l := len(f.Rets); l > 1 || (l == 1 && f.Rets[0].N != "") {
@@ -79,7 +82,7 @@ func (f *Func) String() string {
 	return strings.Join(s, "")
 }
 
-func (f *Func) Prepare() {
+func (f *Func) Prepare() error {
 	if f.File != nil {
 		pkgName := f.File.Package().Name
 		for _, a := range f.Args {
@@ -94,10 +97,12 @@ func (f *Func) Prepare() {
 		}
 		f.File.Imports.AddImports(f.Imports)
 	}
+	return nil
 }
 
-func (f *Func) Generate() []string {
-	return []string{f.String()}
+func (f *Func) Generate() error {
+	f.File.AddCode(f.String())
+	return nil
 }
 
 func (f *Func) Type() FuncType {
