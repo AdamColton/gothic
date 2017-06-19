@@ -18,22 +18,24 @@ func SetEnvironment(env string) {
 }
 
 type StrSetter interface {
-	On(string, string) StrSetter
-	All(string) StrSetter
+	As(string, ...string) StrSetter
 }
 
 type strSetter string
 
-func (s strSetter) On(env, val string) StrSetter {
+func (s strSetter) As(val string, envs ...string) StrSetter {
 	key := string(s)
-	strs[env][key] = val
-	return s
-}
+	if len(envs) == 0 {
+		for _, env := range strs {
+			env[key] = val
+		}
+		return s
+	}
 
-func (s strSetter) All(val string) StrSetter {
-	key := string(s)
-	for _, env := range strs {
-		env[key] = val
+	for _, envStr := range envs {
+		if env, ok := strs[envStr]; ok {
+			env[key] = val
+		}
 	}
 	return s
 }

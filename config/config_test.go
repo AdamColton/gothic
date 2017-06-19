@@ -9,8 +9,8 @@ func TestConfig(t *testing.T) {
 	Environments("prod", "dev", "test")
 
 	SetString("test").
-		All("foo").
-		On("dev", "bar")
+		As("bar", "dev").
+		As("foo", "prod", "test")
 
 	assert.Equal(t, "foo", GetString("test"))
 	SetEnvironment("dev")

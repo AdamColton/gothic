@@ -5,8 +5,7 @@ import (
 )
 
 var templates = template.Must(template.New("templates").Parse(`
-{{define "insert"}}
-	res, err := {{.Conn}}.Exec("INSERT INTO {{.QName}} ({{.Fields}}) VALUES ({{.QM}})", {{.Args}})
+{{define "insert"}}res, err := {{.Conn}}.Exec("INSERT INTO {{.QName}} ({{.Fields}}) VALUES ({{.QM}})", {{.Args}})
 	if err != nil {
 		return err
 	}
@@ -15,10 +14,7 @@ var templates = template.Must(template.New("templates").Parse(`
 		return err
 	}
 	{{.Receiver}}.{{.Primary}} = {{.PrimaryType}}(id)
-	return nil
-{{end}}
-{{define "update"}}
-	_, err := {{.Conn}}.Exec("UPDATE {{.QName}} SET ({{.Set}}) WHERE {{.QPrimary}}=?", {{.Args}}, {{.PrimaryArg}})
-	return err
-{{end}}
+	return nil{{end}}
+{{define "update"}}_, err := {{.Conn}}.Exec("UPDATE {{.QName}} SET ({{.Set}}) WHERE {{.QPrimary}}=?", {{.Args}}, {{.PrimaryArg}})
+	return err{{end}}
 `))
