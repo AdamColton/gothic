@@ -17,11 +17,9 @@ var templates = template.Must(template.New("templates").Parse(`
 	return nil{{end}}
 {{define "update"}}	_, err := {{.Conn}}.Exec("UPDATE {{.QName}} SET ({{.Set}}) WHERE {{.QPrimary}}=?", {{.Args}}, {{.PrimaryArg}})
 	return err{{end}}
-{{define "createTable"}}
-	gsql.AddMigration("{{.Migration}}",
-		{{.BackTick}}CREATE TABLE IF NOT EXISTS "{{.Name}}" (
-				{{.DefineTable}}
-			);{{.BackTick}},
-		"DROP TABLE {{.QName}};")
-{{end}}
+{{define "createTable"}}var _ = gsql.AddMigration("{{.Migration}}",
+	{{.BackTick}}CREATE TABLE IF NOT EXISTS "{{.Name}}" (
+			{{.DefineTable}}
+		);{{.BackTick}},
+	"DROP TABLE {{.QName}};"){{end}}
 `))

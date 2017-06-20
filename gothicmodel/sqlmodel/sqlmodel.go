@@ -61,8 +61,15 @@ func (s *SQL) Update(fields ...string) *gothicgo.Method {
 	return m
 }
 
+var MigrationFile *gothicgo.File
+
 func (s *SQL) Create(migration string, fields ...string) *gothicgo.Func {
-	f := s.model.Struct.File().NewFunc("m_" + migration)
+	file := MigrationFile
+	if file == nil {
+		file = s.model.Struct.File()
+	}
+	f := file.NewFunc("m_" + migration)
+	f.AddPackageImport("gsql")
 	buf := &bytes.Buffer{}
 	h := s.getHelper(fields...)
 	h.Migration = migration
