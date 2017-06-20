@@ -42,15 +42,6 @@ func createHelper(s *SQL) *helper {
 		}
 		if f == h.Primary {
 			h.PrimaryType = gt.Type().RelStr(s.model.Struct.PackageName())
-			t, ok := s.model.Model.Field(f)
-			if !ok {
-				continue
-			}
-			t, ok = Types[t]
-			if !ok {
-				continue
-			}
-			h.PrimaryType = t
 			continue
 		}
 
@@ -116,9 +107,15 @@ func (h *helper) DefineTable() string {
 	var rows []string
 
 	if h.Primary != "" {
-		rows = append(rows,
-			fmt.Sprintf("\"%s\" %s", h.Primary, h.PrimaryType),
-			fmt.Sprintf("PRIMARY KEY(\"%s\")", h.Primary))
+		t, ok := h.Model.model.Model.Field(h.Primary)
+		if ok {
+			t, ok = Types[t]
+		}
+		if ok {
+			rows = append(rows,
+				fmt.Sprintf("\"%s\" %s", h.Primary, t),
+				fmt.Sprintf("PRIMARY KEY(\"%s\")", h.Primary))
+		}
 	}
 
 	for _, field := range h.useFields {
