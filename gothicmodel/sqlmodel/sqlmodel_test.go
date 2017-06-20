@@ -39,8 +39,18 @@ func TestInsert(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	sql := setup()
 
-	insert := sql.Update()
-	insert.SetName("insertTest")
-	s := insert.String()
-	t.Error(s)
+	update := sql.Update()
+	update.SetName("updateTest")
+	s := update.String()
+	assert.Contains(t, s, "_, err := conn.Exec(\"UPDATE `test` SET (Name=?, Age=?) WHERE `ID`=?\", t.Name, t.Age, t.ID)")
+}
+
+func TestCreate(t *testing.T) {
+	sql := setup()
+
+	create := sql.Create("12345_create_user")
+	s := create.String()
+	assert.Contains(t, s, "func 12345_create_user()")
+	assert.Contains(t, s, "\"ID\" int UNSIGNED DEFAULT 0 NOT NULL,")
+	assert.Contains(t, s, "CREATE TABLE IF NOT EXISTS \"test\" (")
 }

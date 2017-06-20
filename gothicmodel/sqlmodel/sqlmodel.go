@@ -13,6 +13,7 @@ type SQL struct {
 	helper    *helper
 	Conn      string
 	TableName string
+	Migration string
 }
 
 func New(model *gomodel.GoModel) *SQL {
@@ -58,4 +59,14 @@ func (s *SQL) Update(fields ...string) *gothicgo.Method {
 	templates.ExecuteTemplate(buf, "update", s.getHelper(fields...))
 	m.Body = buf.String()
 	return m
+}
+
+func (s *SQL) Create(migration string, fields ...string) *gothicgo.Func {
+	s.Migration = migration
+	f := gothicgo.NewFunc(migration)
+	buf := &bytes.Buffer{}
+	templates.ExecuteTemplate(buf, "createTable", s.getHelper(fields...))
+	f.Body = buf.String()
+	s.model.Struct.File().AddGenerators(f)
+	return f
 }

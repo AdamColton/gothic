@@ -1,6 +1,7 @@
 package sqlmodel
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -17,6 +18,8 @@ type helper struct {
 	Receiver    string
 	Conn        string
 	useFields   []string
+	Migration   string
+	Model       *SQL
 }
 
 func createHelper(s *SQL) *helper {
@@ -27,6 +30,8 @@ func createHelper(s *SQL) *helper {
 		Conn:      s.Conn,
 		fieldsMap: make(map[string]bool),
 		args:      make(map[string]string),
+		Migration: s.Migration,
+		Model:     s,
 	}
 	for _, f := range s.model.Model.Fields() {
 		ts, _ := s.model.Model.Field(f)
@@ -37,6 +42,15 @@ func createHelper(s *SQL) *helper {
 		}
 		if f == h.Primary {
 			h.PrimaryType = gt.Type().RelStr(s.model.Struct.PackageName())
+			t, ok := s.model.Model.Field(f)
+			if !ok {
+				continue
+			}
+			t, ok = Types[t]
+			if !ok {
+				continue
+			}
+			h.PrimaryType = t
 			continue
 		}
 
@@ -92,4 +106,31 @@ func (h *helper) QPrimary() string {
 
 func (h *helper) PrimaryArg() string {
 	return h.Receiver + "." + h.Primary
+}
+
+func (h *helper) BackTick() string {
+	return "`"
+}
+
+func (h *helper) DefineTable() string {
+	var rows []string
+
+	if h.Primary != "" {
+		rows = append(rows,
+			fmt.Sprintf("\"%s\" %s", h.Primary, h.PrimaryType),
+			fmt.Sprintf("PRIMARY KEY(\"%s\")", h.Primary))
+	}
+
+	for _, field := range h.useFields {
+		t, ok := h.Model.model.Model.Field(field)
+		if !ok {
+			continue
+		}
+		t, ok = Types[t]
+		if !ok {
+			continue
+		}
+		rows = append(rows, fmt.Sprintf("\"%s\" %s", field, t))
+	}
+	return strings.Join(rows, ",\n")
 }
