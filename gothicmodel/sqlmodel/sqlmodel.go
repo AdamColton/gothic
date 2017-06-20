@@ -62,10 +62,11 @@ func (s *SQL) Update(fields ...string) *gothicgo.Method {
 }
 
 func (s *SQL) Create(migration string, fields ...string) *gothicgo.Func {
-	s.Migration = migration
 	f := s.model.Struct.File().NewFunc("m_" + migration)
 	buf := &bytes.Buffer{}
-	templates.ExecuteTemplate(buf, "createTable", s.getHelper(fields...))
+	h := s.getHelper(fields...)
+	h.Migration = migration
+	templates.ExecuteTemplate(buf, "createTable", h)
 	f.Body = buf.String()
 	return f
 }
