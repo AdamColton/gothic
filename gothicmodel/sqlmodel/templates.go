@@ -23,6 +23,5 @@ var templates = template.Must(template.New("templates").Parse(`
 				{{.DefineTable}}
 			);{{.BackTick}},
 		"DROP TABLE {{.QName}};")
-	}
 {{end}}
 `))
