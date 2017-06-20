@@ -129,5 +129,5 @@ func (h *helper) DefineTable() string {
 		}
 		rows = append(rows, fmt.Sprintf("\"%s\" %s", field, t))
 	}
-	return strings.Join(rows, ",\n")
+	return strings.Join(rows, ",\n\t\t\t\t")
 }
