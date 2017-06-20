@@ -48,9 +48,7 @@ func TestUpdate(t *testing.T) {
 func TestCreate(t *testing.T) {
 	sql := setup()
 
-	create := sql.Create("12345_create_user")
-	s := create.String()
-	assert.Contains(t, s, "func m_12345_create_user()")
+	s := sql.Create("12345_create_user")
 	assert.Contains(t, s, "\"ID\" int UNSIGNED DEFAULT 0 NOT NULL,")
 	assert.Contains(t, s, "CREATE TABLE IF NOT EXISTS \"test\" (")
 }

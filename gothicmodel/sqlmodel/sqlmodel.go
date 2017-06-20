@@ -63,17 +63,17 @@ func (s *SQL) Update(fields ...string) *gothicgo.Method {
 
 var MigrationFile *gothicgo.File
 
-func (s *SQL) Create(migration string, fields ...string) *gothicgo.Func {
+func (s *SQL) Create(migration string, fields ...string) string {
 	file := MigrationFile
 	if file == nil {
 		file = s.model.Struct.File()
 	}
-	f := file.NewFunc("m_" + migration)
-	f.AddPackageImport("gsql")
+	file.AddPackageImport("gsql")
 	buf := &bytes.Buffer{}
 	h := s.getHelper(fields...)
 	h.Migration = migration
 	templates.ExecuteTemplate(buf, "createTable", h)
-	f.Body = buf.String()
-	return f
+	str := buf.String()
+	file.AddCode(str)
+	return str
 }
