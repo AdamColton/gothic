@@ -2,6 +2,7 @@ package sqlmodel
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/adamcolton/gothic/gothicgo"
 	"github.com/adamcolton/gothic/gothicmodel/gomodel"
 )
@@ -14,6 +15,7 @@ type SQL struct {
 	Conn      string
 	TableName string
 	Migration string
+	scanner   *gothicgo.Func
 }
 
 func New(model *gomodel.GoModel) *SQL {
@@ -24,13 +26,17 @@ func New(model *gomodel.GoModel) *SQL {
 	}
 }
 
-func (s *SQL) getHelper(fields ...string) *helper {
+func (s *SQL) getHelper(fields []string, allFields bool) *helper {
 	if s.helper == nil {
 		s.helper = createHelper(s)
 	}
 
 	if len(fields) == 0 {
-		s.helper.useFields = s.helper.fields
+		if allFields {
+			s.helper.useFields = s.helper.allFields()
+		} else {
+			s.helper.useFields = s.helper.fields
+		}
 	} else {
 		s.helper.useFields = make([]string, 0, len(fields))
 		for _, field := range fields {
@@ -43,37 +49,90 @@ func (s *SQL) getHelper(fields ...string) *helper {
 	return s.helper
 }
 
-func (s *SQL) Insert(fields ...string) *gothicgo.Method {
-	m := s.model.Struct.NewMethod("insert")
+func (s *SQL) genericMethod(name string, fields []string, allFields bool) *gothicgo.Method {
+	m := s.model.Struct.NewMethod(name)
 	m.Returns(gothicgo.Ret(gothicgo.ErrorType))
 	buf := &bytes.Buffer{}
-	templates.ExecuteTemplate(buf, "insert", s.getHelper(fields...))
+	err := templates.ExecuteTemplate(buf, name, s.getHelper(fields, allFields))
+	if err != nil {
+		fmt.Println(err)
+	}
 	m.Body = buf.String()
 	return m
 }
 
-func (s *SQL) Update(fields ...string) *gothicgo.Method {
-	m := s.model.Struct.NewMethod("update")
-	m.Returns(gothicgo.Ret(gothicgo.ErrorType))
+func (s *SQL) genericFunction(name string, slice bool, fields []string, allFields bool) *gothicgo.Func {
+	f := s.model.Struct.File().NewFunc(name + s.model.Name())
+	t := gothicgo.PointerTo(s.model.Type())
+	if slice {
+		t = gothicgo.SliceOf(t)
+	}
+	f.Returns(gothicgo.Ret(t), gothicgo.Ret(gothicgo.ErrorType))
 	buf := &bytes.Buffer{}
-	templates.ExecuteTemplate(buf, "update", s.getHelper(fields...))
-	m.Body = buf.String()
-	return m
+	err := templates.ExecuteTemplate(buf, name, s.getHelper(fields, allFields))
+	if err != nil {
+		fmt.Println(err)
+	}
+	f.Body = buf.String()
+	return f
+}
+
+func (s *SQL) Insert(fields ...string) *gothicgo.Method {
+	return s.genericMethod("insert", fields, false)
+}
+
+func (s *SQL) Update(fields ...string) *gothicgo.Method {
+	return s.genericMethod("update", fields, false)
 }
 
 var MigrationFile *gothicgo.File
 
-func (s *SQL) Create(migration string, fields ...string) string {
-	file := MigrationFile
-	if file == nil {
-		file = s.model.Struct.File()
+func getMigrationFile() *gothicgo.File {
+	if MigrationFile == nil {
+		MigrationFile = gothicgo.NewPackage("db").File("migrations.gen")
 	}
-	file.AddPackageImport("gsql")
+	MigrationFile.AddPackageImport("gsql")
+	return MigrationFile
+}
+
+func (s *SQL) Create(migration string, fields ...string) string {
+	file := getMigrationFile()
+
 	buf := &bytes.Buffer{}
-	h := s.getHelper(fields...)
+	h := s.getHelper(fields, false)
 	h.Migration = migration
 	templates.ExecuteTemplate(buf, "createTable", h)
 	str := buf.String()
 	file.AddCode(str)
 	return str
 }
+
+var ScannerType = gothicgo.DefStruct("db.Scanner")
+
+func (s *SQL) Scan() *gothicgo.Func {
+	s.scanner = s.genericFunction("scan", false, nil, true)
+	s.scanner.SetName("scan" + s.model.Name())
+	s.scanner.Args = append(s.scanner.Args, gothicgo.Arg("rows", ScannerType))
+	return s.scanner
+}
+
+func (s *SQL) Select() *gothicgo.Func {
+	if s.scanner == nil {
+		s.Scan()
+	}
+	m := s.genericFunction("select", true, nil, true)
+	m.Args = append(m.Args, gothicgo.Arg("where", gothicgo.StringType), gothicgo.Arg("args", gothicgo.EmptyInterfaceType))
+	m.Variadic = true
+	return m
+}
+
+/*
+func (s *SQL) Upsert(fields ...string) *gothicgo.Method {
+	m := s.model.Struct.NewMethod("upsert")
+	m.Returns(gothicgo.Ret(gothicgo.ErrorType))
+	buf := &bytes.Buffer{}
+	templates.ExecuteTemplate(buf, "upsert", s.getHelper(fields...))
+	m.Body = buf.String()
+	return m
+}
+*/

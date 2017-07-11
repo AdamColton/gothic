@@ -20,6 +20,7 @@ var Types = map[string]string{
 	// "uint32":     gothicgo.Uint32Type,
 	// "uint64":     gothicgo.Uint64Type,
 	// "uintptr":    gothicgo.UintptrType,
+	"datetime": "DATETIME",
 }
 
 type Converter struct {
@@ -27,4 +28,9 @@ type Converter struct {
 	fromDB string
 }
 
-var Converters = make(map[string]*Converter)
+var Converters = map[string]*Converter{
+	"datetime": &Converter{
+		toDB:   "TimeToString",
+		fromDB: "StringToTime",
+	},
+}

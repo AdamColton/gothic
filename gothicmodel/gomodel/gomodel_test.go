@@ -10,7 +10,8 @@ import (
 func TestGoModel(t *testing.T) {
 	m := gothicmodel.New("test").
 		AddField("Name", "string").
-		AddField("Age", "int")
+		AddField("Age", "int").
+		AddField("LastLogin", "datetime")
 
 	pkg := gothicgo.NewPackage("test")
 	gm := Struct(pkg, m)
@@ -20,4 +21,5 @@ func TestGoModel(t *testing.T) {
 	assert.Contains(t, s, "type test struct {")
 	assert.Regexp(t, "Name +string", s)
 	assert.Regexp(t, "Age +int", s)
+	assert.Regexp(t, "LastLogin +time.Time", s)
 }

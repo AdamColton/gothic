@@ -2,6 +2,7 @@ package sqlmodel
 
 import (
 	"fmt"
+	"github.com/adamcolton/gothic/gothicmodel/gomodel"
 	"strings"
 )
 
@@ -57,6 +58,47 @@ func createHelper(s *SQL) *helper {
 func (h *helper) Fields() string {
 	return "`" + strings.Join(h.useFields, "`, `") + "`"
 }
+
+func (h *helper) allFields() []string {
+	fs := make([]string, len(h.fields)+1)
+	copy(fs[1:], h.fields)
+	fs[0] = h.Primary
+	return fs
+}
+
+type nameType struct {
+	Name   string
+	Type   string
+	FromDB string
+	R      string
+}
+
+func (h *helper) ConvertFields() []nameType {
+	pkg := h.Model.model.Struct.PackageName()
+	var nts []nameType
+	for _, f := range h.allFields() {
+		t, _ := h.Model.model.Model.Field(f)
+		if c, ok := Converters[t]; ok {
+			t = gomodel.Types[t].RelStr(pkg)
+			nts = append(nts, nameType{Name: f, Type: t, FromDB: c.fromDB, R: h.Receiver})
+		}
+	}
+	return nts
+}
+
+func (h *helper) ScanFields() string {
+	scanFields := make([]string, len(h.useFields))
+	for i, f := range h.useFields {
+		t, _ := h.Model.model.Model.Field(f)
+		if _, ok := Converters[t]; ok {
+			scanFields[i] = "&(" + f + ")"
+		} else {
+			scanFields[i] = "&(" + h.Receiver + "." + f + ")"
+		}
+	}
+	return strings.Join(scanFields, ", ")
+}
+
 func (h *helper) QM() string {
 	qm := make([]string, len(h.useFields))
 	for i := range qm {
@@ -93,6 +135,10 @@ func (h *helper) Set() string {
 
 func (h *helper) QPrimary() string {
 	return "`" + h.Primary + "`"
+}
+
+func (h *helper) Scanner() string {
+	return h.Model.scanner.GetName()
 }
 
 func (h *helper) PrimaryArg() string {

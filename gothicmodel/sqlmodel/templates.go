@@ -22,4 +22,33 @@ var templates = template.Must(template.New("templates").Parse(`
 			{{.DefineTable}}
 		);{{.BackTick}},
 	"DROP TABLE {{.QName}};"){{end}}
+{{define "scan"}}	{{.Receiver}} := &{{.Name}}{}{{range .ConvertFields}}
+	var {{.Name}} {{.Type}}{{end}}
+	err := rows.Scan({{.ScanFields}})
+	if err != nil {
+		return nil, err
+	}{{range .ConvertFields}}
+	{{.R}}.{{.Name}} = {{.FromDB}}({{.Name}}){{end}}
+	return {{.Receiver}}, nil{{end}}
+{{define "select"}}
+	rows, err := db.Conn.Query("SELECT {{.Fields}} FROM {{.QName}} "+where, args...)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	var {{.Receiver}}s []*{{.Name}}
+	for rows.Next() {
+		{{.Receiver}},err := {{.Scanner}}(r)
+		if err != nil {
+			return nil, err
+		}	
+		{{.Receiver}}s = append({{.Receiver}}s, scan(rows))
+	}
+	return {{.Receiver}}s, nil
+{{end}}
+{{define "scanner"}}
+type Scanner interface {
+	Scan(...interface{}) error
+}
+{{end}}
 `))

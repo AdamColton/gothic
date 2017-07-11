@@ -4,6 +4,12 @@
 
 * set order on methods
 
+Change NameType to an interface:
+type NameType interace{
+  Type
+  Name() string
+}
+
 #### Comments
 Add a comments utility to take a comment string, wrap it at a given col width (
 80 by default) and prepend // to each line. Functions, Structs and Types should

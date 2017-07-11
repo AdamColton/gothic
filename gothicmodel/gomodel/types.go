@@ -24,4 +24,5 @@ var Types = map[string]gothicgo.Type{
 	"uint32":     gothicgo.Uint32Type,
 	"uint64":     gothicgo.Uint64Type,
 	"uintptr":    gothicgo.UintptrType,
+	"datetime":   gothicgo.DefStruct("time.Time"),
 }
