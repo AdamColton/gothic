@@ -12,6 +12,8 @@ type Package struct {
 	ImportPath string
 	OutputPath string
 	files      map[string]*File
+	structs    map[string]*Struct
+	interfaces map[string]*Interface
 	resolver   ImportResolver
 	Comment    string
 }
@@ -21,7 +23,9 @@ func NewPackage(name string) *Package {
 		Name:       name,
 		ImportPath: path.Join(ImportPath, name),
 		OutputPath: path.Join(OutputPath, name),
-		files:      map[string]*File{},
+		files:      make(map[string]*File),
+		structs:    make(map[string]*Struct),
+		interfaces: make(map[string]*Interface),
 		Comment:    DefaultComment,
 	}
 	packages.AddGenerators(pkg)

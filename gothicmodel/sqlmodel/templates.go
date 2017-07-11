@@ -46,9 +46,4 @@ var templates = template.Must(template.New("templates").Parse(`
 	}
 	return {{.Receiver}}s, nil
 {{end}}
-{{define "scanner"}}
-type Scanner interface {
-	Scan(...interface{}) error
-}
-{{end}}
 `))

@@ -66,3 +66,13 @@ func TestFuncType(t *testing.T) {
 	assert.Equal(t, "func(string, int) *Person", ft.Name())
 	assert.Equal(t, "func(string, int) *test.Person", ft.String())
 }
+
+func TestFuncSignature(t *testing.T) {
+	f := NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
+	f.Returns(Ret(PointerTo(DefStruct("test.Person"))))
+	f.File = NewPackage("test").File("testFile")
+
+	fs := f.RelSignature("test")
+
+	assert.Equal(t, "Foo(name string, age int) *Person", fs)
+}

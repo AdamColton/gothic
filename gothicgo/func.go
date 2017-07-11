@@ -57,6 +57,23 @@ func nameTypeSliceToString(nts []*NameType, pkgName string, variadic bool) strin
 	return strings.Join(s, ", ")
 }
 
+func (f *Func) RelSignature(pkg string) string {
+	s := make([]string, 6)
+	s[0] = f.name
+	s[1] = "("
+	s[2] = nameTypeSliceToString(f.Args, pkg, f.Variadic)
+	if l := len(f.Rets); l > 1 || (l == 1 && f.Rets[0].N != "") {
+		s[3] = ") ("
+		s[5] = ")"
+	} else {
+		s[3] = ")"
+		s[5] = ""
+	}
+	s[4] = nameTypeSliceToString(f.Rets, pkg, false)
+
+	return strings.Join(s, "")
+}
+
 // String outputs the entire function as a string
 func (f *Func) String() string {
 	pkgName := ""

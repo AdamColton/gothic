@@ -119,12 +119,15 @@ func (s *SQL) Create(migration string, fields ...string) string {
 	return str
 }
 
-var ScannerType = gothicgo.DefStruct("db.Scanner")
-
 func (s *SQL) Scan() *gothicgo.Func {
+	scannerItfc, err := s.model.File().NewInterface("scanner")
+	if err == nil {
+		args := []gothicgo.Type{gothicgo.EmptyInterfaceType}
+		rets := []gothicgo.Type{gothicgo.ErrorType}
+		scannerItfc.AddMethod("Scan", args, rets, true)
+	}
 	s.scanner = s.genericFunction("scan", false, nil, true)
-	s.scanner.SetName("scan" + s.model.Name())
-	s.scanner.Args = append(s.scanner.Args, gothicgo.Arg("rows", ScannerType))
+	s.scanner.Args = append(s.scanner.Args, gothicgo.Arg("rows", scannerItfc))
 	return s.scanner
 }
 
