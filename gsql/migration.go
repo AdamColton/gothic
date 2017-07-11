@@ -8,6 +8,12 @@ import (
 
 var Conn *sql.DB
 
+func SetConn(driverName, dataSourceName string) (*sql.DB, error) {
+	var err error
+	Conn, err = sql.Open(driverName, dataSourceName)
+	return Conn, err
+}
+
 // this allows us to the the go ` and replaces the MySql ` with ""
 // so `"ID" int` becomes `ID` int
 var quotes = strings.NewReplacer(`"`, "`")
@@ -76,7 +82,7 @@ func AddMigration(name, up, down string) Migration {
 func getMigrationsRan() map[string]bool {
 	hasRan := make(map[string]bool)
 
-	rows, err := db.Conn.Query("SHOW TABLES LIKE 'migrations';")
+	rows, err := Conn.Query("SHOW TABLES LIKE 'migrations';")
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +91,7 @@ func getMigrationsRan() map[string]bool {
 		return hasRan
 	}
 
-	rows, err = db.Conn.Query("SELECT `name` FROM `migrations`")
+	rows, err = Conn.Query("SELECT `name` FROM `migrations`")
 	if err != nil {
 		panic(err)
 	}
@@ -101,15 +107,15 @@ func getMigrationsRan() map[string]bool {
 }
 
 func runMigration(migration string) {
-	_, err := db.Conn.Exec(Migrations[migration].Up)
+	_, err := Conn.Exec(Migrations[migration].Up)
 	if err != nil {
 		panic(err)
 	}
-	db.Conn.Exec("INSERT INTO migrations (name) VALUES (?)", migration)
+	Conn.Exec("INSERT INTO migrations (name) VALUES (?)", migration)
 }
 
 func Rollback() string {
-	rows, _ := db.Conn.Query("SELECT `id`,`Name` FROM `migrations` ORDER BY `Name` DESC LIMIT 1;")
+	rows, _ := Conn.Query("SELECT `id`,`Name` FROM `migrations` ORDER BY `Name` DESC LIMIT 1;")
 	if !rows.Next() {
 		// not even migration migration has run yet
 		return ""
@@ -117,7 +123,7 @@ func Rollback() string {
 	var id int
 	var name string
 	rows.Scan(&id, &name)
-	db.Conn.Exec(Migrations[name].Down)
-	db.Conn.Exec("DELETE FROM `migrations` WHERE `id`=?;", id)
+	Conn.Exec(Migrations[name].Down)
+	Conn.Exec("DELETE FROM `migrations` WHERE `id`=?;", id)
 	return name
 }

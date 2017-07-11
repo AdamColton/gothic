@@ -8,21 +8,24 @@ import (
 )
 
 var DefaultConn = "conn"
+var ConnPackage = ""
 
 type SQL struct {
-	model     *gomodel.GoModel
-	helper    *helper
-	Conn      string
-	TableName string
-	Migration string
-	scanner   *gothicgo.Func
+	model       *gomodel.GoModel
+	helper      *helper
+	Conn        string
+	ConnPackage string
+	TableName   string
+	Migration   string
+	scanner     *gothicgo.Func
 }
 
 func New(model *gomodel.GoModel) *SQL {
 	return &SQL{
-		model:     model,
-		Conn:      DefaultConn,
-		TableName: model.Model.Name(),
+		model:       model,
+		Conn:        DefaultConn,
+		ConnPackage: ConnPackage,
+		TableName:   model.Model.Name(),
 	}
 }
 
@@ -49,7 +52,14 @@ func (s *SQL) getHelper(fields []string, allFields bool) *helper {
 	return s.helper
 }
 
+func (s *SQL) addImport() {
+	if s.ConnPackage != "" {
+		s.model.File().AddPackageImport(s.ConnPackage)
+	}
+}
+
 func (s *SQL) genericMethod(name string, fields []string, allFields bool) *gothicgo.Method {
+	s.addImport()
 	m := s.model.Struct.NewMethod(name)
 	m.Returns(gothicgo.Ret(gothicgo.ErrorType))
 	buf := &bytes.Buffer{}
@@ -62,6 +72,7 @@ func (s *SQL) genericMethod(name string, fields []string, allFields bool) *gothi
 }
 
 func (s *SQL) genericFunction(name string, slice bool, fields []string, allFields bool) *gothicgo.Func {
+	s.addImport()
 	f := s.model.Struct.File().NewFunc(name + s.model.Name())
 	t := gothicgo.PointerTo(s.model.Type())
 	if slice {
@@ -96,6 +107,7 @@ func getMigrationFile() *gothicgo.File {
 }
 
 func (s *SQL) Create(migration string, fields ...string) string {
+	s.addImport()
 	file := getMigrationFile()
 
 	buf := &bytes.Buffer{}
