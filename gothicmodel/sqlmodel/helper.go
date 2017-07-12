@@ -137,6 +137,10 @@ func (h *helper) QPrimary() string {
 	return "`" + h.Primary + "`"
 }
 
+func (h *helper) PrimaryZeroVal() string {
+	return ZeroVals[h.PrimaryType]
+}
+
 func (h *helper) Scanner() string {
 	return h.Model.scanner.GetName()
 }

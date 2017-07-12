@@ -34,3 +34,26 @@ var Converters = map[string]*Converter{
 		fromDB: "StringToTime",
 	},
 }
+
+var ZeroVals = map[string]string{
+	"bool":  "0",
+	"byte":  "0",
+	"int":   "0",
+	"int8":  "0",
+	"int16": "0",
+	"int32": "0",
+	"int64": "0",
+	// "complex128": gothicgo.Complex128Type,
+	// "complex64":  gothicgo.Complex64Type,
+	//"float32":    gothicgo.Float32Type,
+	//"float64":    gothicgo.Float64Type,
+	//"rune":       gothicgo.RuneType,
+	"string": "\"\"",
+	"uint":   "0",
+	// "uint8":      gothicgo.Uint8Type,
+	// "uint16":     gothicgo.Uint16Type,
+	// "uint32":     gothicgo.Uint32Type,
+	// "uint64":     gothicgo.Uint64Type,
+	// "uintptr":    gothicgo.UintptrType,
+	//"datetime": "DATETIME",
+}

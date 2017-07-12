@@ -57,18 +57,33 @@ can't check it in tests. Better would be for that to go to some sort of log, or
 at least an out stream so tests can check it and users can redirect it.
 
 ### Snippets
-I've started working on this, but I'll add a few notes just in case.
+A snippet is a way to generate a chunk of code, but something that won't stand
+on it's own. It might be validaiton, it might setup a function or method call,
+lots of stuff.
 
-SnippetContainers hold snippets in buckets. Likely buckets would be
-"validators", "mutexLocks", "mutexUnlocks".
+But a snippet needs contextual information. The most basic is what are the
+variable names I'm operating on.
 
-Both a Field and a Struct are SnippetContainers. So a setter only needs to
-access snippets on the field. Things like validators that span multiple fields
-can be called in constructors.
+We should be able to "curry" the contextual information.
 
-See notes on Generators
+It's almost safe to assume all contextual information is strings, but check
+that; how will we handle packages.
 
-### Add interfaces
+So
+type Snippet interface{
+  AddContext(key, value string)
+  ContextKeys()[]string
+  String() string
+}
+
+Snippets also need to be arranged in buckets. A bucket can hold snippets and
+other buckets. For instance, on a Struct, there may be a validation bucket.
+Validators that span fields will go in that bucket. Each field will also have
+a Validators bucket. And all of those buckets will be in the Stuct validators
+bucket. When validating the Struct, you can get all the validtors, but when
+just validating a single field, you just get the validtors for that field.
+
+### Fix interfaces
 I really like the pattern of a private struct with a public interface.
 Particularly for what I'm doing here, it makes it easy for someone to build a
 replacement. I need to convert a few of the structs over to this style.

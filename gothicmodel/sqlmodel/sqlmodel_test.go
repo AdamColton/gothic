@@ -68,5 +68,15 @@ func TestSelect(t *testing.T) {
 
 	slct := sql.Select()
 	s := slct.String()
-	assert.Contains(t, s, "	rows, err := db.Conn.Query(\"SELECT `ID`, `Name`, `Age`, `LastLogin` FROM `test` \"+where, args...)")
+	assert.Contains(t, s, "rows, err := conn.Query(\"SELECT `ID`, `Name`, `Age`, `LastLogin` FROM `test` \"+where, args...)")
+}
+
+func TestUpsert(t *testing.T) {
+	sql := setup()
+
+	slct := sql.Upsert()
+	s := slct.String()
+	assert.Contains(t, s, "if t.ID != 0 {")
+	assert.Contains(t, s, "_, err := conn.Exec(\"UPDATE `test` SET (Name=?, Age=?, LastLogin=?) WHERE `ID`=?\", t.Name, t.Age, TimeToString(t.LastLogin), t.ID)")
+	assert.Contains(t, s, "res, err := conn.Exec(\"INSERT INTO `test` (`Name`, `Age`, `LastLogin`) VALUES (?, ?, ?)\", t.Name, t.Age, TimeToString(t.LastLogin))")
 }

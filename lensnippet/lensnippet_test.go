@@ -2,33 +2,27 @@ package lensnippet
 
 import (
 	"github.com/adamcolton/gothic"
-	"github.com/adamcolton/gothic/gothicgo"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-type testContainer struct {
-	*gothic.SC
-	*gothicgo.NameType
+type testErrSnippet string
+
+func (es testErrSnippet) AddContext(key, value string) gothic.Snippet {
+	if key == "Error" {
+		es = testErrSnippet(value)
+	}
+	return es
+}
+func (es testErrSnippet) String() string {
+	return "err = fmt.Errorf(\"" + string(es) + "\")"
 }
 
 func TestLenSnippet(t *testing.T) {
-	tc := &testContainer{
-		SC: gothic.NewSC(),
-		NameType: &gothicgo.NameType{
-			N: "test",
-			T: gothicgo.StringType,
-		},
-	}
+	m := Min(10, testErrSnippet(""))
+	assert.NotNil(t, m)
 
-	m := Min(tc, 5)
-	if m == nil {
-		t.Error("Bad")
-	}
-
-	mi := m.New()
-	mi.Prepare()
-	expected := []string{"if len(test) < 5 {\n\terrs.Add(\"test must be at least 5 long\")\n}"}
-
-	assert.Equal(t, expected, mi.Generate())
+	s := m.AddContext("On", "test").String()
+	assert.Contains(t, s, "if len(test) < 10 {")
+	assert.Contains(t, s, "err = fmt.Errorf(\"test must be at least 10 long\")")
 }

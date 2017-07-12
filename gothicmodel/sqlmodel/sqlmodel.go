@@ -141,13 +141,6 @@ func (s *SQL) Select() *gothicgo.Func {
 	return m
 }
 
-/*
-func (s *SQL) Upsert(fields ...string) *gothicgo.Method {
-	m := s.model.Struct.NewMethod("upsert")
-	m.Returns(gothicgo.Ret(gothicgo.ErrorType))
-	buf := &bytes.Buffer{}
-	templates.ExecuteTemplate(buf, "upsert", s.getHelper(fields...))
-	m.Body = buf.String()
-	return m
+func (s *SQL) Upsert() *gothicgo.Method {
+	return s.genericMethod("upsert", nil, false)
 }
-*/
