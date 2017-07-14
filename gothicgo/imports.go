@@ -27,9 +27,11 @@ func (i *Imports) AddPathImport(path string) {
 	}
 }
 
-func (i *Imports) AddPackageImport(pkg string) {
-	if pkg != "" {
-		i.pkgs[pkg] = ""
+func (i *Imports) AddPackageImport(pkgs ...string) {
+	for _, pkg := range pkgs {
+		if pkg != "" {
+			i.pkgs[pkg] = ""
+		}
 	}
 }
 func (i *Imports) AddPathAliasImport(path, alias string) {

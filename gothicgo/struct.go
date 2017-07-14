@@ -71,8 +71,12 @@ func (s *Struct) Field(name string) (*Field, bool) {
 	return f, ok
 }
 
-// Fields returns the fields in order. Do not modify this list.
-func (s *Struct) Fields() []string { return s.fieldOrder }
+// Fields returns the fields in order.
+func (s *Struct) Fields() []string {
+	fs := make([]string, len(s.fieldOrder))
+	copy(fs, s.fieldOrder)
+	return fs
+}
 
 func (s *Struct) AddField(name string, typ Type) (*Field, error) {
 	key := name
