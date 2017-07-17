@@ -22,8 +22,8 @@ var templates = template.Must(template.New("templates").Parse(`
 	{{.BackTick}}CREATE TABLE IF NOT EXISTS "{{.Name}}" (
 			{{.DefineTable}}
 		);{{.BackTick}},
-	"DROP TABLE {{.QName}};"){{end}}
-}
+	"DROP TABLE {{.QName}};")
+}{{end}}
 {{define "scan"}}	{{.Receiver}} := &{{.Name}}{}{{range .ConvertFields}}
 	var {{.Name}} {{.Type}}{{end}}
 	err := rows.Scan({{.ScanFields}})
