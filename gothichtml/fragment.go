@@ -82,6 +82,24 @@ func (f *fragment) RemoveChild(idx int) {
 	}
 }
 
+func (f *fragment) Text(text string) *Text {
+	t := NewText(text)
+	f.AddChildren(t)
+	return t
+}
+
+func (f *fragment) Tag(tag string, attrs ...string) *Tag {
+	t := NewTag(tag, attrs...)
+	f.AddChildren(t)
+	return t
+}
+
+func (f *fragment) VoidTag(tag string, attrs ...string) *VoidTag {
+	t := NewVoidTag(tag, attrs...)
+	f.AddChildren(t)
+	return t
+}
+
 // RemoveFragments modifies a tree and removes any Fragments other than the
 // root.
 func RemoveFragments(node Node) {

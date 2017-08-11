@@ -29,14 +29,14 @@ ws        /\s+/ -
 `
 
 	grammarRules = `
-Doc         -> DocType? Node*
-DocType     -> doctype word close
-Node        -> Tag|VoidTag|text
-Tag         -> openTag Attributes close Contents closeTag
-Contents    -> Node*
-VoidTag     -> openTag Attributes voidClose
-Attributes  -> Attribute*
-Attribute   -> word eq word|string
+Doc        -> DocType? Node*
+DocType    -> doctype word close
+Node       -> Tag|VoidTag|text
+Tag        -> openTag Attributes close Contents closeTag
+Contents   -> Node*
+VoidTag    -> openTag Attributes voidClose
+Attributes -> Attribute*
+Attribute  -> word eq word|string
 `
 )
 

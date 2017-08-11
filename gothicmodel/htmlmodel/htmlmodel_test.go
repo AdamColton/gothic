@@ -9,6 +9,7 @@ import (
 )
 
 func setup() *gothicmodel.Model {
+	InputTypes["primary"] = "hidden"
 	m := gothicmodel.New("test").
 		AddPrimary("ID", "primary").
 		AddField("Name", "string").
@@ -38,7 +39,6 @@ func TestGenerateLapizForm(t *testing.T) {
 		return generateRowWrapper(field, field, vt)
 	}
 
-	InputTypes["primary"] = "hidden"
 	var generateForm = func(m *gothicmodel.Model) gothichtml.Node {
 		form := gothichtml.NewTag("form", "l-view", "editPerson", "submit", "form.saveTask")
 		InputTypes.GenerateFields(m, generateRow, form)
@@ -81,15 +81,14 @@ func TestGenerateTable(t *testing.T) {
 		return td
 	}
 
-	delete(InputTypes, "primary")
-	var generateTable = func(m *gothicmodel.Model) gothichtml.Node {
+	var generateTable = func(m *gothicmodel.Model, fields ...string) gothichtml.Node {
 		table := gothichtml.NewTag("table")
 		header := table.Tag("tr")
-		InputTypes.GenerateFields(m, generateHeader, header)
+		InputTypes.GenerateFields(m, generateHeader, header, fields...)
 		header.Tag("th").Text("Actions")
 		table.Text("{{range .}}")
 		row := table.Tag("tr")
-		InputTypes.GenerateFields(m, generateRow, row)
+		InputTypes.GenerateFields(m, generateRow, row, fields...)
 		actions := row.Tag("td")
 		actions.Tag("a", "href", fmt.Sprintf("/%s/edit/{{.ID}}", m.Name())).Text("Edit")
 		actions.Tag("a", "href", fmt.Sprintf("/%s/delete/{{.ID}}", m.Name())).Text("Delete")
@@ -116,6 +115,6 @@ func TestGenerateTable(t *testing.T) {
 </table>`
 
 	m := setup()
-	table := generateTable(m)
+	table := generateTable(m, "Name", "Age")
 	assert.Equal(t, expected, gothichtml.String(table))
 }
