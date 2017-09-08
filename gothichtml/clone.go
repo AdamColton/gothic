@@ -30,7 +30,8 @@ func Clone(node Node) Node {
 		return t
 	case *Text:
 		t := &Text{
-			text: n.text,
+			Text: n.Text,
+			Wrap: n.Wrap,
 		}
 		t.parent = newParent(t)
 		return t

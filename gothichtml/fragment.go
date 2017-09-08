@@ -30,22 +30,22 @@ type fragment struct {
 }
 
 func (f *fragment) Write(w io.Writer) {
-	f.write(ToStringWriter(w), NewLine)
+	f.write(newWriter(w))
 }
 
 func (f *fragment) frag() *fragment {
 	return f
 }
 
-func (f *fragment) write(sw StringWriter, padding string) {
+func (f *fragment) write(w *writer) {
 	pad := false
 	for _, c := range f.children {
 		if pad {
-			sw.WriteString(padding)
+			w.nl()
 		} else {
 			pad = true
 		}
-		c.write(sw, padding)
+		c.write(w)
 	}
 }
 

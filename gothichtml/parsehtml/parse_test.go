@@ -19,21 +19,21 @@ func TestPieces(t *testing.T) {
 func TestParse(t *testing.T) {
 	expected := `<!DOCTYPE html>
 <html>
-	<header>
-		<title>Test Doc</title>
-		<link href="/css/foo.css" rel="stylesheet" type="text/css" />
-		<link href="/css/bar.css" rel="stylesheet" type="text/css" />
-	</header>
-	<body id="body">
-		<p>I am a paragraph</p>
-		<ul>
-			<li>Item 1</li>
-			<li>Item 2</li>
-			<li>Item 3</li>
-		</ul>
-		<script src="/js/foo.js"></script>
-		<script src="/js/bar.js"></script>
-	</body>
+  <header>
+    <title>Test Doc</title>
+    <link href="/css/foo.css" rel="stylesheet" type="text/css" />
+    <link href="/css/bar.css" rel="stylesheet" type="text/css" />
+  </header>
+  <body id="body">
+    <p>I am a paragraph</p>
+    <ul>
+      <li>Item 1</li>
+      <li>Item 2</li>
+      <li>Item 3</li>
+    </ul>
+    <script src="/js/foo.js"></script>
+    <script src="/js/bar.js"></script>
+  </body>
 </html>`
 	nodes, err := Parse(doc)
 	if assert.NoError(t, err) {

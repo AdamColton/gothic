@@ -22,11 +22,11 @@ func NewDoctype(doctype string) *Doctype {
 
 // Write Doctype to an io.Writer
 func (d *Doctype) Write(w io.Writer) {
-	d.write(ToStringWriter(w), NewLine)
+	d.write(newWriter(w))
 }
 
-func (d *Doctype) write(sw StringWriter, Padding string) {
-	sw.WriteString("<!DOCTYPE ")
-	sw.WriteString(d.doctype)
-	sw.WriteString(">")
+func (d *Doctype) write(w *writer) {
+	w.write("<!DOCTYPE ")
+	w.write(d.doctype)
+	w.write(">")
 }

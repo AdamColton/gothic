@@ -11,7 +11,7 @@ import (
 var NewLine = "\n"
 
 // Padding is the string that is used to indent html
-var Padding = "\t"
+var Padding = "  "
 
 // StringWriter takes a string as an argument (instead of []bytes). It is
 // fulfilled by bytes.Buffer.
@@ -43,7 +43,7 @@ func ToStringWriter(w io.Writer) StringWriter {
 // in testing, but less so in production code.
 func String(node Node) string {
 	var buf bytes.Buffer
-	node.write(&buf, "\n")
+	node.write(newWriter(&buf))
 	return buf.String()
 }
 

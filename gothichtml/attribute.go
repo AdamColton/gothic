@@ -40,16 +40,15 @@ func (a attributes) Attribute(key string) (string, bool) {
 	return v, ok
 }
 
-func (a attributes) write(w StringWriter) {
-	sw := w.WriteString
+func (a attributes) write(w *writer) {
 	for _, k := range a.Attributes() {
 		v := a[k]
-		sw(" ")
-		sw(k)
+		w.write(" ")
+		w.write(k)
 		if v != "" {
-			sw(`="`)
-			sw(v)
-			sw(`"`)
+			w.write(`="`)
+			w.write(v)
+			w.write(`"`)
 		}
 	}
 }

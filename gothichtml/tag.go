@@ -28,36 +28,35 @@ func (t *Tag) Name() string { return t.tag }
 
 // Write a tag to a writer
 func (t *Tag) Write(w io.Writer) {
-	t.write(ToStringWriter(w), NewLine)
+	t.write(newWriter(w))
 }
 
-func (t *Tag) write(w StringWriter, padding string) {
-	sw := w.WriteString
-	sw("<")
-	sw(t.tag)
+func (t *Tag) write(w *writer) {
+	w.write("<")
+	w.write(t.tag)
 	t.attributes.write(w)
-	sw(">")
+	w.write(">")
 
 	multiline := true
 	if l := len(t.fragment.children); l == 0 {
 		multiline = false
 	} else if l == 1 {
 		if text, ok := t.fragment.children[0].(*Text); ok {
-			multiline = strings.Contains(text.text, "\n")
+			multiline = strings.Contains(text.Text, "\n")
 		}
 	}
 
-	childpadding := padding + Padding
+	cw := w.inc()
 	if multiline {
-		sw(childpadding)
+		cw.nl()
 	}
-	t.fragment.write(w, childpadding)
+	t.fragment.write(cw)
 	if multiline {
-		sw(padding)
+		w.nl()
 	}
-	sw("</")
-	sw(t.tag)
-	sw(">")
+	w.write("</")
+	w.write(t.tag)
+	w.write(">")
 }
 
 // VoidTag is a self closing tag that cannot contain children
@@ -83,13 +82,12 @@ func (t *VoidTag) Name() string { return t.tag }
 
 // Write a VoidTag to a writer
 func (t *VoidTag) Write(w io.Writer) {
-	t.write(ToStringWriter(w), NewLine)
+	t.write(newWriter(w))
 }
 
-func (t *VoidTag) write(w StringWriter, padding string) {
-	sw := w.WriteString
-	sw("<")
-	sw(t.tag)
+func (t *VoidTag) write(w *writer) {
+	w.write("<")
+	w.write(t.tag)
 	t.attributes.write(w)
-	sw(" />")
+	w.write(" />")
 }

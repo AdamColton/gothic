@@ -72,6 +72,10 @@ func Parse(str string) (gothichtml.Node, error) {
 		return nil, op.err
 	}
 
+	if op.doc.Children() == 1 {
+		return op.doc.Child(0), nil
+	}
+
 	return op.doc, nil
 }
 

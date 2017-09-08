@@ -39,13 +39,13 @@ func TestFormat(t *testing.T) {
 	div.AddChildren(p1, ul, p2)
 	f := NewFragment(div, p3)
 	expected := `<div>
-	<p>This is a test</p>
-	<ul>
-		<li>Item 1</li>
-		<li>Item 2</li>
-		<li>Item 3</li>
-	</ul>
-	<p>This is another test</p>
+  <p>This is a test</p>
+  <ul>
+    <li>Item 1</li>
+    <li>Item 2</li>
+    <li>Item 3</li>
+  </ul>
+  <p>This is another test</p>
 </div>
 <p>That's right, 3 paragraphs.</p>`
 	assert.Equal(t, expected, String(f))
@@ -118,4 +118,41 @@ func TestRemoveFragment(t *testing.T) {
 
 	assert.Equal(t, before, after)
 	assert.Equal(t, body, js1.Parent())
+}
+
+func TestFormatWrap(t *testing.T) {
+	li1 := NewTag("li")
+	li1.AddChildren(NewText("Item 1"))
+	li2 := NewTag("li")
+	li2.AddChildren(NewText("Item 2"))
+	li3 := NewTag("li")
+	li3.AddChildren(NewText("Item 3"))
+	ul := NewTag("ul")
+	ul.AddChildren(li1, li2, li3)
+	p1 := NewTag("p")
+	p1.AddChildren(NewText("This is a test"))
+	p2 := NewTag("p")
+	p2.AddChildren(NewText("This is a very long  paragraph that should be wrapped. It is longer than 80 characters so it will need to be on at least 2 lines, each indented to the same depth. This should be long enough, I hope."))
+	p3 := NewTag("p")
+	p3.AddChildren(NewText("That's right, 3 paragraphs."))
+	div := NewTag("div")
+	div.AddChildren(p1, ul, p2)
+	f := NewFragment(div, p3)
+	expected := `<div>
+  <p>This is a test</p>
+  <ul>
+    <li>Item 1</li>
+    <li>Item 2</li>
+    <li>Item 3</li>
+  </ul>
+  <p>
+    This is a very long paragraph that should be wrapped. It is longer than 80
+    characters so it will need to be on at least 2 lines, each indented to the
+    same depth. This should be long enough, I hope.
+  </p>
+</div>
+<p>That's right, 3 paragraphs.</p>`
+	assert.Equal(t, expected, String(f))
+
+	assert.True(t, li1 == li1)
 }

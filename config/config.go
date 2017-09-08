@@ -48,3 +48,7 @@ func GetString(key string) string {
 	}
 	return env[key]
 }
+
+func GetBytes(key string) []byte {
+	return []byte(GetString(key))
+}
