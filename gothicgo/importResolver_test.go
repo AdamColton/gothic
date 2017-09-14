@@ -6,7 +6,7 @@ import (
 
 func TestAutoResolver(t *testing.T) {
 	a := AutoResolver()
-	if a.Resolve("fmt") != "fmt" {
+	if a.Resolve("fmt").String() != "fmt" {
 		t.Error("Did not correctly resolve fmt")
 	}
 }

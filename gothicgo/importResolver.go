@@ -11,22 +11,22 @@ import (
 // so if foo is mapped to bar/glorp, return `foo "bar/glorp"
 
 type ImportResolver interface {
-	Resolve(pkgName string) string
-	Add(pkgName, imprt string)
+	Resolve(pkgName string) PackageRef
+	Add(ref PackageRef)
 }
 
-type ManualResolver map[string]string
+type ManualResolver map[string]PackageRef
 
-func (m ManualResolver) Resolve(pkg string) string {
+func (m ManualResolver) Resolve(pkg string) PackageRef {
 	return m[pkg]
 }
 
-func (m ManualResolver) Add(pkg, path string) {
-	m[pkg] = path
+func (m ManualResolver) Add(ref PackageRef) {
+	m[ref.Name()] = ref
 }
 
 type autoResolver struct {
-	packages map[string]string
+	packages map[string]PackageRef
 }
 
 var arSingleton *autoResolver
@@ -36,7 +36,7 @@ func AutoResolver() ImportResolver {
 		return arSingleton
 	}
 	arSingleton = &autoResolver{
-		packages: map[string]string{},
+		packages: make(map[string]PackageRef),
 	}
 	for _, path := range build.Default.SrcDirs() {
 		f, err := os.Open(path)
@@ -57,12 +57,12 @@ func AutoResolver() ImportResolver {
 	return arSingleton
 }
 
-func (a *autoResolver) Resolve(pkg string) string {
+func (a *autoResolver) Resolve(pkg string) PackageRef {
 	return a.packages[pkg]
 }
 
-func (a *autoResolver) Add(pkg, path string) {
-	a.packages[pkg] = path
+func (a *autoResolver) Add(ref PackageRef) {
+	a.packages[ref.Name()] = ref
 }
 
 func (a *autoResolver) loadPkg(root, importpath string) {
@@ -75,7 +75,7 @@ func (a *autoResolver) loadPkg(root, importpath string) {
 
 	_, pkgName := filepath.Split(importpath)
 	if _, ok := a.packages[pkgName]; !ok {
-		a.packages[pkgName] = importpath
+		a.packages[pkgName] = packageRef(importpath)
 	}
 
 	pkgDir, err := os.Open(dir)

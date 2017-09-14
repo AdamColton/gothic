@@ -48,34 +48,33 @@ func (i *Interface) Generate() error {
 }
 
 func (i *Interface) str() string {
-	pkg := i.file.Package().Name
 	out := "type " + i.name + " interface{\n"
 	for _, im := range i.methods {
-		out += "\t" + im.str(pkg) + "\n"
+		out += "\t" + im.str(i.file.Imports) + "\n"
 	}
 	out += "}\n\n"
 	return out
 }
 
-func typeSliceToString(ts []Type, pkg string, variadic bool) string {
+func typeSliceToString(ts []Type, imp *Imports, variadic bool) string {
 	l := len(ts)
 	var s = make([]string, l)
 	l--
 	for i, t := range ts {
 		if i == l && variadic {
-			s[i] = " ..." + t.RelStr(pkg)
+			s[i] = " ..." + t.RelStr(imp)
 		} else {
-			s[i] = t.RelStr(pkg)
+			s[i] = t.RelStr(imp)
 		}
 	}
 	return strings.Join(s, ", ")
 }
 
-func (im *interfaceMethod) str(pkg string) string {
+func (im *interfaceMethod) str(imp *Imports) string {
 	s := make([]string, 6)
 	s[0] = im.name
 	s[1] = "("
-	s[2] = typeSliceToString(im.args, pkg, im.variadic)
+	s[2] = typeSliceToString(im.args, imp, im.variadic)
 	if l := len(im.rets); l > 1 {
 		s[3] = ") ("
 		s[5] = ")"
@@ -83,7 +82,7 @@ func (im *interfaceMethod) str(pkg string) string {
 		s[3] = ") "
 		s[5] = ""
 	}
-	s[4] = typeSliceToString(im.rets, pkg, false)
+	s[4] = typeSliceToString(im.rets, imp, false)
 
 	return strings.Join(s, "")
 }

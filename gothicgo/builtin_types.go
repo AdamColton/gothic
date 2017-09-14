@@ -2,12 +2,12 @@ package gothicgo
 
 type builtin string
 
-func (b builtin) Name() string             { return string(b) }
-func (b builtin) String() string           { return string(b) }
-func (b builtin) RelStr(pkg string) string { return string(b) }
-func (b builtin) PackageName() string      { return "" }
-func (b builtin) File() *File              { return nil }
-func (b builtin) Kind() Kind               { return BuiltinKind }
+func (b builtin) Name() string           { return string(b) }
+func (b builtin) String() string         { return string(b) }
+func (b builtin) RelStr(*Imports) string { return string(b) }
+func (b builtin) PackageRef() PackageRef { return pkgBuiltin }
+func (b builtin) File() *File            { return nil }
+func (b builtin) Kind() Kind             { return BuiltinKind }
 
 var BoolType = Type(builtin("bool"))
 var ByteType = Type(builtin("byte"))

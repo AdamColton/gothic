@@ -14,6 +14,9 @@ const (
 	InterfaceKind
 )
 
+// TODO: this concept sort of doesn't make sense. A struct has a name, but a
+// func doesn't really have a name without package reference.
+
 // The Type interface represents a type in Go. Name is the type without the
 // package, String is the type with the package and RelStr takes a package name
 // and return the string representing the type with the package included.
@@ -23,8 +26,10 @@ const (
 type Type interface {
 	Name() string
 	String() string
-	RelStr(pkg string) string
-	PackageName() string
+	RelStr(*Imports) string
+	PackageRef() PackageRef
 	File() *File
 	Kind() Kind
 }
+
+type RelStr func(PackageRef) string

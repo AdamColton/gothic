@@ -10,8 +10,8 @@ type SliceT struct {
 }
 
 func (s *SliceT) Name() string             { return "[]" + s.Type.Name() }
-func (s *SliceT) String() string           { return s.RelStr("") }
-func (s *SliceT) RelStr(pkg string) string { return "[]" + s.Type.RelStr(pkg) }
+func (s *SliceT) String() string           { return s.RelStr(nil) }
+func (s *SliceT) RelStr(i *Imports) string { return "[]" + s.Type.RelStr(i) }
 func (s *SliceT) Kind() Kind               { return SliceKind }
 func (s *SliceT) Elem() Type               { return s.Type }
 

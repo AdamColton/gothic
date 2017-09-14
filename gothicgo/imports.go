@@ -8,72 +8,116 @@ import (
 
 // Imports is a tool for managing imports. Imports can be defined by path or
 // package and either may include an alias. The ResolvePackages method must be
-// called to resolve any packages to paths.
+// called to resolve any packages to refs.
 type Imports struct {
-	paths map[string]string
-	pkgs  map[string]string
+	self  PackageRef
+	refs  map[PackageRef]string
+	names map[string]string
 }
 
-func NewImports() *Imports {
+func NewImports(self PackageRef) *Imports {
 	return &Imports{
-		paths: map[string]string{},
-		pkgs:  map[string]string{},
+		self:  self,
+		refs:  make(map[PackageRef]string),
+		names: make(map[string]string),
 	}
 }
 
-func (i *Imports) AddPathImport(path string) {
-	if path != "" {
-		i.paths[path] = ""
+// Prefix returns the name or alias of the package reference if it is
+// different from Imports.self. The name will either be a blank string or will
+// end with a period.
+func (i *Imports) Prefix(ref PackageRef) string {
+	if i != nil && i.self != nil && ref.String() == i.self.String() {
+		return ""
 	}
+	return i.GetRefName(ref) + "."
 }
 
-func (i *Imports) AddPackageImport(pkgs ...string) {
-	for _, pkg := range pkgs {
-		if pkg != "" {
-			i.pkgs[pkg] = ""
+func (i *Imports) AddRefImports(refs ...PackageRef) {
+	for _, ref := range refs {
+		if ref != nil && ref.String() != "" && (i.self == nil || ref.String() != i.self.String()) {
+			if _, exists := i.refs[ref]; !exists {
+				i.refs[ref] = ""
+			}
 		}
 	}
 }
-func (i *Imports) AddPathAliasImport(path, alias string) {
-	if path != "" {
-		i.paths[path] = alias
+
+func (i *Imports) AddNameImports(names ...string) {
+	//TODO: check that name is well formed
+	for _, name := range names {
+		if name != "" {
+			i.names[name] = ""
+		}
 	}
 }
-func (i *Imports) AddPackageAliasImport(pkg, alias string) {
-	if pkg != "" {
-		i.pkgs[pkg] = alias
+func (i *Imports) AddRefAliasImport(ref PackageRef, alias string) {
+	if ref != nil && ref.String() != "" && ref.String() != i.self.String() {
+		i.refs[ref] = alias
+	}
+}
+func (i *Imports) AddNameAliasImport(name, alias string) {
+	//TODO: check that pkg is well formed
+	if name != "" && alias != "" {
+		i.names[name] = alias
 	}
 }
 func (i *Imports) AddImports(imports *Imports) {
-	for pkg, alias := range imports.pkgs {
-		i.pkgs[pkg] = alias
+	// TODO: handle alias collision
+	for pkg, alias := range imports.names {
+		i.names[pkg] = alias
 	}
-	for path, alias := range imports.paths {
-		i.paths[path] = alias
+	for path, alias := range imports.refs {
+		i.refs[path] = alias
 	}
 }
 
-func (i *Imports) RemovePath(path string) {
-	delete(i.paths, path)
+func (i *Imports) RemoveRef(ref PackageRef) {
+	delete(i.refs, ref)
 }
 
 func (i *Imports) ResolvePackages(resolver ImportResolver) {
-	for pkg, alias := range i.pkgs {
-		if path := resolver.Resolve(pkg); path != "" {
-			i.paths[path] = alias
+	// TODO: handle alias collision
+	for pkg, alias := range i.names {
+		if path := resolver.Resolve(pkg); path.String() != "" {
+			i.refs[path] = alias
 		}
 	}
 }
 
+func (i *Imports) GetRefName(ref PackageRef) string {
+	if i == nil {
+		return ref.Name()
+	}
+	name, ok := i.refs[ref]
+	if ok {
+		if name != "" {
+			return name
+		}
+		return ref.Name()
+	}
+	rn := ref.Name()
+	name, ok = i.names[rn]
+	if !ok {
+		return rn
+	}
+	delete(i.names, rn)
+	i.refs[ref] = name
+	if name == "" {
+		return rn
+	}
+	return name
+}
+
 func (i *Imports) String() string {
-	ln := len(i.paths)
+	ln := len(i.refs)
 	if ln == 0 {
 		return ""
 	}
 	l := make([]string, ln+3)
 	l[0] = "import ("
 	j := 1
-	for path, alias := range i.paths {
+	for path, alias := range i.refs {
 		if alias == "" {
 			l[j] = fmt.Sprintf("\t\"%s\"", path)
 		} else {

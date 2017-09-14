@@ -34,7 +34,7 @@ func (f *File) AddCode(code ...string) { f.code = append(f.code, code...) }
 
 func (f *File) Generate() error {
 	f.Imports.ResolvePackages(f.Package().ImportResolver())
-	f.Imports.RemovePath(f.pkg.ImportPath)
+	f.Imports.RemoveRef(f.pkg.Ref)
 
 	err := f.generators.Generate()
 	if err != nil {
@@ -77,7 +77,7 @@ func (p *Package) File(name string) *File {
 		return file
 	}
 	f := &File{
-		Imports:    NewImports(),
+		Imports:    NewImports(p.Ref),
 		generators: gothic.New(),
 		name:       name,
 		pkg:        p,

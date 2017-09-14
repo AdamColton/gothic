@@ -6,14 +6,14 @@ import (
 )
 
 func TestImports(t *testing.T) {
-	i := NewImports()
+	i := NewImports(nil)
 	assert.Equal(t, "", i.String(), "Empty Import")
 
-	i.AddPackageImport("test")
-	i.AddPathImport("foo/bar")
+	i.AddNameImports("test")
+	i.AddRefImports(MustPackageRef("foo/bar"))
 
-	r := ManualResolver(map[string]string{})
-	r.Add("test", "test/test")
+	r := ManualResolver(make(map[string]PackageRef))
+	r.Add(MustPackageRef("test/test"))
 
 	i.ResolvePackages(r)
 	expected := "import (\n\t\"foo/bar\"\n\t\"test/test\"\n)\n"

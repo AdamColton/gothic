@@ -6,7 +6,9 @@ import (
 )
 
 func TestInterface(t *testing.T) {
-	file := NewPackage("test").File("testFile")
+	p, err := NewPackage("test")
+	assert.NoError(t, err)
+	file := p.File("testFile")
 	i, err := file.NewInterface("Stringer")
 	assert.NoError(t, err)
 	i.AddMethod("String", nil, []Type{StringType}, false)

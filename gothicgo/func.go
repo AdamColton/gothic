@@ -12,13 +12,14 @@ type Func struct {
 	Rets     []*NameType
 	Body     string
 	Variadic bool
-	File     *File
+	//TODO: now that Imports is shared with file, this shouldn't be exported.
+	File *File
 }
 
 // NewFunc takes the function name and arguments and returns a Func
 func NewFunc(name string, args ...*NameType) *Func {
 	return &Func{
-		Imports: NewImports(),
+		Imports: NewImports(pkgBuiltin),
 		name:    name,
 		Args:    args,
 	}
@@ -26,7 +27,7 @@ func NewFunc(name string, args ...*NameType) *Func {
 
 func (f *File) NewFunc(name string, args ...*NameType) *Func {
 	fn := &Func{
-		Imports: NewImports(),
+		Imports: f.Imports,
 		name:    name,
 		Args:    args,
 		File:    f,
@@ -41,12 +42,12 @@ func (f *Func) SetName(name string) { f.name = name }
 // Returns sets the returns on a Func
 func (f *Func) Returns(rets ...*NameType) { f.Rets = rets }
 
-func nameTypeSliceToString(nts []*NameType, pkgName string, variadic bool) string {
+func nameTypeSliceToString(imp *Imports, nts []*NameType, variadic bool) string {
 	l := len(nts)
 	var s = make([]string, l)
 	l--
 	for i := l; i >= 0; i-- {
-		if ts := nts[i].T.RelStr(pkgName); i < l && ts == nts[i+1].T.RelStr(pkgName) {
+		if ts := nts[i].T.RelStr(imp); i < l && ts == nts[i+1].T.RelStr(imp) {
 			s[i] = nts[i].N
 		} else if i == l && variadic {
 			s[i] = nts[i].N + " ..." + ts
@@ -61,7 +62,7 @@ func (f *Func) RelSignature(pkg string) string {
 	s := make([]string, 6)
 	s[0] = f.name
 	s[1] = "("
-	s[2] = nameTypeSliceToString(f.Args, pkg, f.Variadic)
+	s[2] = nameTypeSliceToString(f.Imports, f.Args, f.Variadic)
 	if l := len(f.Rets); l > 1 || (l == 1 && f.Rets[0].N != "") {
 		s[3] = ") ("
 		s[5] = ")"
@@ -69,23 +70,18 @@ func (f *Func) RelSignature(pkg string) string {
 		s[3] = ")"
 		s[5] = ""
 	}
-	s[4] = nameTypeSliceToString(f.Rets, pkg, false)
+	s[4] = nameTypeSliceToString(f.Imports, f.Rets, false)
 
 	return strings.Join(s, "")
 }
 
 // String outputs the entire function as a string
 func (f *Func) String() string {
-	pkgName := ""
-	if f.File != nil {
-		pkgName = f.File.Package().Name
-	}
-
 	s := make([]string, 9)
 	s[0] = "func "
 	s[1] = f.name
 	s[2] = "("
-	s[3] = nameTypeSliceToString(f.Args, pkgName, f.Variadic)
+	s[3] = nameTypeSliceToString(f.Imports, f.Args, f.Variadic)
 	if l := len(f.Rets); l > 1 || (l == 1 && f.Rets[0].N != "") {
 		s[4] = ") ("
 		s[6] = ") {\n"
@@ -93,27 +89,13 @@ func (f *Func) String() string {
 		s[4] = ")"
 		s[6] = " {\n"
 	}
-	s[5] = nameTypeSliceToString(f.Rets, pkgName, false)
+	s[5] = nameTypeSliceToString(f.Imports, f.Rets, false)
 	s[7] = f.Body
 	s[8] = "\n}\n\n"
 	return strings.Join(s, "")
 }
 
 func (f *Func) Prepare() error {
-	if f.File != nil {
-		pkgName := f.File.Package().Name
-		for _, a := range f.Args {
-			if aPkgName := a.T.PackageName(); aPkgName != pkgName {
-				f.File.AddPackageImport(aPkgName)
-			}
-		}
-		for _, r := range f.Rets {
-			if rPkgName := r.T.PackageName(); rPkgName != pkgName {
-				f.File.AddPackageImport(rPkgName)
-			}
-		}
-		f.File.Imports.AddImports(f.Imports)
-	}
 	return nil
 }
 
@@ -138,15 +120,15 @@ type fnT struct {
 }
 
 func (f *fnT) Name() string {
-	return f.RelStr(f.PackageName())
+	return f.RelStr(nil)
 }
 
-func (f *fnT) RelStr(pkg string) string {
+func (f *fnT) RelStr(imp *Imports) string {
 	s := make([]string, 5)
 	s[0] = "func("
 	args := make([]string, len(f.fn.Args))
 	for i, arg := range f.fn.Args {
-		args[i] = arg.T.RelStr(pkg)
+		args[i] = arg.T.RelStr(imp)
 	}
 	s[1] = strings.Join(args, ", ")
 	lr := len(f.fn.Rets)
@@ -158,21 +140,21 @@ func (f *fnT) RelStr(pkg string) string {
 	}
 	rets := make([]string, lr)
 	for i, ret := range f.fn.Rets {
-		rets[i] = ret.T.RelStr(pkg)
+		rets[i] = ret.T.RelStr(imp)
 	}
 	s[3] = strings.Join(rets, ", ")
 	return strings.Join(s, "")
 }
 
 func (f *fnT) String() string {
-	return f.RelStr("")
+	return f.RelStr(nil)
 }
 
-func (f *fnT) PackageName() string {
+func (f *fnT) PackageRef() PackageRef {
 	if f.fn.File != nil {
-		return f.fn.File.pkg.Name
+		return f.fn.File.pkg.Ref
 	}
-	return ""
+	return pkgBuiltin
 }
 
 func (f *fnT) File() *File       { return f.File() }

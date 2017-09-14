@@ -10,8 +10,8 @@ type PointerT struct {
 }
 
 func (p *PointerT) Name() string             { return "*" + p.Type.Name() }
-func (p *PointerT) String() string           { return p.RelStr("") }
-func (p *PointerT) RelStr(pkg string) string { return "*" + p.Type.RelStr(pkg) }
+func (p *PointerT) String() string           { return p.RelStr(nil) }
+func (p *PointerT) RelStr(i *Imports) string { return "*" + p.Type.RelStr(i) }
 func (p *PointerT) Kind() Kind               { return PointerKind }
 func (p *PointerT) Elem() Type               { return p.Type }
 

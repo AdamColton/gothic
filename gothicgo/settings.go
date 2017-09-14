@@ -2,11 +2,24 @@ package gothicgo
 
 import (
 	"github.com/adamcolton/gothic"
+	"regexp"
 	"strings"
 )
 
-var ImportPath string //TODO: can we deduce the Import path with importResolver?
+var importPath string //TODO: can we deduce the Import path with importResolver?
 var OutputPath = "./Project"
+
+var importPathRe = regexp.MustCompile(`^([\w\-\.]+\/)*$`)
+
+const ErrBadImportPath = errStr("Bad Import Path")
+
+func SetImportPath(path string) error {
+	if !importPathRe.MatchString(path) {
+		return ErrBadImportPath
+	}
+	importPath = path
+	return nil
+}
 
 var DefaultComment = "This code was generated from a Gothic Blueprint, DO NOT MODIFY"
 var CommentWidth = 80

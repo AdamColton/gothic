@@ -8,15 +8,15 @@ import (
 
 type istruct string
 
-func (i istruct) PackageName() string {
-	return string(i)
+func (i istruct) imports() *Imports {
+	return NewImports(MustPackageRef(string(i)))
 }
 
 func TestFieldString(t *testing.T) {
 	f := &Field{
 		nameType: &NameType{
 			N: "bar",
-			T: PointerTo(DefStruct("foo.bar")),
+			T: PointerTo(DefStruct(MustPackageRef("foo"), "bar")),
 		},
 		tags: map[string]string{},
 		stct: istruct("foo"),
@@ -41,7 +41,7 @@ func TestFieldMethods(t *testing.T) {
 	f := &Field{
 		nameType: &NameType{
 			N: "bar",
-			T: PointerTo(DefStruct("foo.bar")),
+			T: PointerTo(DefStruct(MustPackageRef("foo"), "bar")),
 		},
 		tags: map[string]string{"key": "value"},
 		stct: istruct("foo"),
@@ -70,28 +70,33 @@ func TestStructString(t *testing.T) {
 	*foo.Glorp
 }`
 
-	p := NewPackage("test")
-	p.ImportPath = "test"
+	foo := MustPackageRef("foo")
+	SetImportPath("")
+	p, err := NewPackage("test")
+	assert.NoError(t, err)
 	p.OutputPath = "test"
 	s := p.NewStruct("test")
-	s.AddField("foo", PointerTo(DefStruct("foo.Foo")))
-	s.AddField("bar", PointerTo(DefStruct("foo.Bar")))
-	s.Embed(PointerTo(DefStruct("foo.Glorp")))
+	s.AddField("foo", PointerTo(DefStruct(foo, "Foo")))
+	s.AddField("bar", PointerTo(DefStruct(foo, "Bar")))
+	s.Embed(PointerTo(DefStruct(foo, "Glorp")))
 
 	assert.Equal(t, expected, s.String())
 }
 
 func TestImportString(t *testing.T) {
-	p := NewPackage("test")
-	p.ImportPath = "test"
+	SetImportPath("")
+	p, err := NewPackage("test")
+	assert.NoError(t, err)
 	p.OutputPath = "test"
 	s := p.NewStruct("test")
-	s.AddField("time", DefStruct("time.Time"))
+	timePkg := MustPackageRef("time")
+	s.AddField("time", DefStruct(timePkg, "Time"))
 	s.Prepare()
 
-	time, ok := s.file.Imports.pkgs["time"]
+	time, ok := s.file.Imports.refs[timePkg]
 	assert.True(t, ok)
 	assert.Equal(t, "", time)
+	assert.Equal(t, "time", s.file.GetRefName(timePkg))
 }
 
 func TestWriteStruct(t *testing.T) {
@@ -107,11 +112,12 @@ type test struct {
 	time time.Time
 }
 `
-	p := NewPackage("test")
-	p.ImportPath = "test"
+	SetImportPath("")
+	p, err := NewPackage("test")
+	assert.NoError(t, err)
 	p.OutputPath = "test"
 	s := p.NewStruct("test")
-	s.AddField("time", DefStruct("time.Time"))
+	s.AddField("time", DefStruct(MustPackageRef("time"), "Time"))
 
 	wc := sai.New()
 	f := s.file
@@ -140,15 +146,16 @@ func (t *test) foo(name string) {
 	fmt.Println("Hi", name)
 }
 `
-	p := NewPackage("test")
-	p.ImportPath = "test"
+	SetImportPath("")
+	p, err := NewPackage("test")
+	assert.NoError(t, err)
 	p.OutputPath = "test"
 	s := p.NewStruct("test")
-	s.AddField("time", DefStruct("time.Time"))
+	s.AddField("time", DefStruct(MustPackageRef("time"), "Time"))
 
 	m := s.NewMethod("foo", Arg("name", StringType))
 	m.Body = "fmt.Println(\"Hi\", name)"
-	m.AddPackageImport("fmt")
+	m.AddRefImports(MustPackageRef("fmt"))
 
 	wc := sai.New()
 	f := s.file
@@ -160,7 +167,7 @@ func (t *test) foo(name string) {
 }
 
 func TestDefStruct(t *testing.T) {
-	s := DefStruct("foo.Bar")
-	assert.Equal(t, "foo", s.PackageName())
+	s := DefStruct(MustPackageRef("foo"), "Bar")
+	assert.Equal(t, "foo", s.PackageRef().String())
 	assert.Equal(t, "Bar", s.Name())
 }

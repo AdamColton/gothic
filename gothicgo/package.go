@@ -4,12 +4,14 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 // represents a directory containing Go code.
 type Package struct {
 	Name       string
-	ImportPath string
+	Ref        PackageRef
 	OutputPath string
 	files      map[string]*File
 	structs    map[string]*Struct
@@ -18,10 +20,20 @@ type Package struct {
 	Comment    string
 }
 
-func NewPackage(name string) *Package {
+var nameRe = regexp.MustCompile(`^[\w\-]+$`)
+var ErrBadPackageName = errStr("Bad package name")
+
+func NewPackage(name string) (*Package, error) {
+	if !nameRe.MatchString(name) {
+		return nil, ErrBadPackageName
+	}
+	pkgRef, err := NewPackageRef(path.Join(importPath, name))
+	if err != nil {
+		return nil, err
+	}
 	pkg := &Package{
 		Name:       name,
-		ImportPath: path.Join(ImportPath, name),
+		Ref:        pkgRef,
 		OutputPath: path.Join(OutputPath, name),
 		files:      make(map[string]*File),
 		structs:    make(map[string]*Struct),
@@ -29,12 +41,12 @@ func NewPackage(name string) *Package {
 		Comment:    DefaultComment,
 	}
 	packages.AddGenerators(pkg)
-	return pkg
+	return pkg, nil
 }
 
 func (p *Package) Prepare() error {
 	if p.Name != "main" {
-		p.ImportResolver().Add(p.Name, p.ImportPath)
+		p.ImportResolver().Add(p.Ref)
 	}
 	for _, f := range p.files {
 		err := f.Prepare()
@@ -73,3 +85,51 @@ func (p *Package) Export() {
 	p.Prepare()
 	p.Generate()
 }
+
+type packageRef string
+
+func (p packageRef) String() string {
+	return string(p)
+}
+
+func (p packageRef) Name() string {
+	last := strings.LastIndex(string(p), "/")
+	if last == -1 {
+		return string(p)
+	}
+	return string(p[last+1:])
+}
+
+func (packageRef) private() {}
+
+var packageRefRegex = regexp.MustCompile(`^([\w\-\.]+\/)*[\w\-]+$`)
+
+type PackageRef interface {
+	String() string
+	Name() string
+	// PackageRef is not meant to be implemented, it's meant as an accessor to the
+	// underlying packageRef. All instances should be created with NewPackageRef
+	// to guarentee that the reference is well formed.
+	private()
+}
+
+const ErrBadPackageRef = errStr("Bad Package Ref")
+
+func NewPackageRef(ref string) (PackageRef, error) {
+	if !packageRefRegex.MatchString(ref) {
+		return nil, ErrBadPackageRef
+	}
+	return packageRef(ref), nil
+}
+
+func MustPackageRef(ref string) PackageRef {
+	p, err := NewPackageRef(ref)
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+var pkgBuiltin = packageRef("")
+
+func PkgBuiltin() PackageRef { return pkgBuiltin }

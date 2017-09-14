@@ -9,8 +9,8 @@ import (
 func TestTypeString(t *testing.T) {
 	expected := "map[foo.bar]*person.Person"
 
-	fb := DefStruct("foo.bar")
-	p := PointerTo(DefStruct("person.Person"))
+	fb := DefStruct(MustPackageRef("foo"), "bar")
+	p := PointerTo(DefStruct(MustPackageRef("person"), "Person"))
 	tp := MapOf(fb, p)
 
 	assert.Equal(t, expected, tp.String())
@@ -54,10 +54,12 @@ func TestMapToFuncTypeString(t *testing.T) {
 }
 
 func TestMapType(t *testing.T) {
-	fb := DefStruct("foo.bar")
-	p := PointerTo(DefStruct("person.Person"))
+	person := MustPackageRef("person")
+	foo := MustPackageRef("foo")
+	fb := DefStruct(foo, "bar")
+	p := PointerTo(DefStruct(person, "Person"))
 	tp := MapOf(fb, p)
-	assert.Equal(t, "map[foo.bar]*Person", tp.RelStr("person"), "Relative to person")
-	assert.Equal(t, "map[bar]*person.Person", tp.RelStr("foo"))
-	assert.Equal(t, "map[foo.bar]*person.Person", tp.RelStr("foods"))
+	assert.Equal(t, "map[foo.bar]*Person", tp.RelStr(NewImports(person)), "Relative to person")
+	assert.Equal(t, "map[bar]*person.Person", tp.RelStr(NewImports(foo)))
+	assert.Equal(t, "map[foo.bar]*person.Person", tp.RelStr(nil))
 }

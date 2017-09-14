@@ -8,15 +8,15 @@ import (
 
 func TestNameTypeSliceToString(t *testing.T) {
 	s := []*NameType{Arg("first", StringType), Arg("middle", StringType), Arg("last", StringType), Arg("title", StringType)}
-	assert.Equal(t, "first, middle, last, title string", nameTypeSliceToString(s, "", false))
+	assert.Equal(t, "first, middle, last, title string", nameTypeSliceToString(nil, s, false))
 
 	s = []*NameType{Arg("first", StringType), Arg("age", IntType)}
-	assert.Equal(t, "first string, age int", nameTypeSliceToString(s, "", false))
+	assert.Equal(t, "first string, age int", nameTypeSliceToString(nil, s, false))
 }
 
 func TestFuncString(t *testing.T) {
 	f := NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
-	f.Returns(Ret(PointerTo(DefStruct("Person"))))
+	f.Returns(Ret(PointerTo(DefStruct(PkgBuiltin(), "Person"))))
 	f.Body = "\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}"
 
 	expected := "func Foo(name string, age int) *Person {\n\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}\n}\n\n"
@@ -26,7 +26,7 @@ func TestFuncString(t *testing.T) {
 
 func TestFuncStringVariadic(t *testing.T) {
 	f := NewFunc("Foo", Arg("name", StringType), Arg("code", IntType))
-	f.Returns(Ret(PointerTo(DefStruct("Person"))))
+	f.Returns(Ret(PointerTo(DefStruct(PkgBuiltin(), "Person"))))
 	f.Body = "\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}"
 	f.Variadic = true
 
@@ -36,8 +36,10 @@ func TestFuncStringVariadic(t *testing.T) {
 }
 
 func TestWriteFunc(t *testing.T) {
-	p := NewPackage("test")
-	p.ImportPath = "test"
+	p, err := NewPackage("test")
+	assert.NoError(t, err)
+	p.Ref, err = NewPackageRef("test")
+	assert.NoError(t, err)
 	p.OutputPath = "test"
 
 	wc := sai.New()
@@ -45,7 +47,7 @@ func TestWriteFunc(t *testing.T) {
 	f.Writer = wc
 
 	fn := f.NewFunc("Foo", Arg("name", StringType), Arg("code", IntType))
-	fn.Returns(Ret(PointerTo(DefStruct("test.Person"))))
+	fn.Returns(Ret(PointerTo(DefStruct(MustPackageRef("test"), "Person"))))
 	fn.Body = "\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}"
 	fn.Variadic = true
 
@@ -58,19 +60,22 @@ func TestWriteFunc(t *testing.T) {
 
 func TestFuncType(t *testing.T) {
 	f := NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
-	f.Returns(Ret(PointerTo(DefStruct("test.Person"))))
-	f.File = NewPackage("test").File("testFile")
+	p, err := NewPackage("test")
+	assert.NoError(t, err)
+	f.Returns(Ret(PointerTo(DefStruct(p.Ref, "Person"))))
+	f.File = p.File("testFile")
 
 	ft := f.Type()
 
-	assert.Equal(t, "func(string, int) *Person", ft.Name())
+	assert.Equal(t, "func(string, int) *test.Person", ft.Name())
 	assert.Equal(t, "func(string, int) *test.Person", ft.String())
 }
 
 func TestFuncSignature(t *testing.T) {
-	f := NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
-	f.Returns(Ret(PointerTo(DefStruct("test.Person"))))
-	f.File = NewPackage("test").File("testFile")
+	p, err := NewPackage("test")
+	assert.NoError(t, err)
+	f := p.File("testFile").NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
+	f.Returns(Ret(PointerTo(DefStruct(p.Ref, "Person"))))
 
 	fs := f.RelSignature("test")
 

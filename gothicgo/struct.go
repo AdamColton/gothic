@@ -63,13 +63,15 @@ func (s *Struct) File() *File { return s.file }
 func (s *Struct) Name() string { return s.name }
 
 // PackageName gets the name of the package.
-func (s *Struct) PackageName() string { return s.file.Package().Name }
+func (s *Struct) PackageRef() PackageRef { return s.file.Package().Ref }
 
 // Field returns a field by name
 func (s *Struct) Field(name string) (*Field, bool) {
 	f, ok := s.fields[name]
 	return f, ok
 }
+
+func (s *Struct) imports() *Imports { return s.file.Imports }
 
 // Fields returns the fields in order.
 func (s *Struct) Fields() []string {
@@ -92,7 +94,7 @@ func (s *Struct) AddField(name string, typ Type) (*Field, error) {
 			T: typ,
 		},
 		tags: map[string]string{},
-		stct: s.Type(),
+		stct: s,
 		//SC:   gothic.NewSC(),
 	}
 	s.fields[key] = f
@@ -123,7 +125,7 @@ func (s *Struct) String() string {
 
 func (s *Struct) Prepare() error {
 	for _, f := range s.fields {
-		s.file.AddPackageImport(f.Type().PackageName())
+		s.file.AddRefImports(f.Type().PackageRef())
 	}
 	return nil
 }
@@ -143,6 +145,7 @@ func (s *Struct) NewMethod(name string, args ...*NameType) *Method {
 		Func:         NewFunc(name, args...),
 	}
 	m.Func.File = s.File()
+	m.Imports = m.Func.File.Imports
 	s.File().AddGenerators(m)
 	s.methods[name] = m
 	return m
@@ -157,7 +160,7 @@ type Field struct {
 	nameType *NameType
 	tags     map[string]string
 	stct     interface { // this makes Field easier to test
-		PackageName() string
+		imports() *Imports
 	}
 	// *gothic.SC
 }
@@ -182,7 +185,7 @@ func (f *Field) String() string {
 		s[i] = "`"
 		tags = strings.Join(s, "")
 	}
-	typeString := f.Type().RelStr(f.stct.PackageName())
+	typeString := f.Type().RelStr(f.stct.imports())
 	if f.Name() == "" {
 		return typeString + tags
 	}
@@ -196,50 +199,36 @@ type StructType interface {
 type sT struct {
 	S interface {
 		Name() string
-		PackageName() string
+		PackageRef() PackageRef
 		File() *File
 	}
 }
 
-func (s *sT) Name() string        { return s.S.Name() }
-func (s *sT) String() string      { return s.S.PackageName() + "." + s.S.Name() }
-func (s *sT) File() *File         { return s.S.File() }
-func (s *sT) PackageName() string { return s.S.PackageName() }
-func (s *sT) Kind() Kind          { return StructKind }
-func (s *sT) RelStr(pkg string) string {
-	if pkg == s.S.PackageName() {
-		return s.S.Name()
-	}
-	return s.S.PackageName() + "." + s.S.Name()
+func (s *sT) Name() string           { return s.S.Name() }
+func (s *sT) String() string         { return s.S.PackageRef().String() + "." + s.S.Name() }
+func (s *sT) File() *File            { return s.S.File() }
+func (s *sT) PackageRef() PackageRef { return s.S.PackageRef() }
+func (s *sT) Kind() Kind             { return StructKind }
+func (s *sT) RelStr(i *Imports) string {
+	return i.Prefix(s.S.PackageRef()) + "." + s.S.Name()
 }
 
 type StructT struct {
-	pkgName string
-	name    string
+	ref  PackageRef
+	name string
 }
 
-func (s *StructT) Name() string        { return s.name }
-func (s *StructT) String() string      { return s.pkgName + "." + s.name }
-func (s *StructT) File() *File         { return nil }
-func (s *StructT) PackageName() string { return s.pkgName }
-func (s *StructT) Kind() Kind          { return StructKind }
-func (s *StructT) RelStr(pkg string) string {
-	if pkg == s.pkgName {
-		return s.name
-	}
-	return s.pkgName + "." + s.name
-}
+func (s *StructT) Name() string             { return s.name }
+func (s *StructT) String() string           { return s.ref.Name() + "." + s.name }
+func (s *StructT) File() *File              { return nil }
+func (s *StructT) RelStr(i *Imports) string { return i.Prefix(s.ref) + s.name }
+func (s *StructT) PackageRef() PackageRef   { return s.ref }
+func (s *StructT) Kind() Kind               { return StructKind }
 
-func DefStruct(signature string) StructType {
-	s := strings.Split(signature, ".")
-	if len(s) > 1 {
-		return &StructT{
-			pkgName: s[0],
-			name:    s[1],
-		}
-	}
+func DefStruct(ref PackageRef, name string) StructType {
 	return &StructT{
-		name: s[0],
+		ref:  ref,
+		name: name,
 	}
 }
 
@@ -270,7 +259,7 @@ func (m *Method) String() string {
 	s[4] = ") "
 	s[5] = m.Func.GetName()
 	s[6] = "("
-	s[7] = nameTypeSliceToString(m.Func.Args, m.strct.PackageName(), m.Func.Variadic)
+	s[7] = nameTypeSliceToString(m.strct.imports(), m.Func.Args, m.Func.Variadic)
 	if l := len(m.Func.Rets); l > 1 || (l == 1 && m.Func.Rets[0].N != "") {
 		s[8] = ") ("
 		s[10] = ") {\n"
@@ -278,7 +267,7 @@ func (m *Method) String() string {
 		s[8] = ")"
 		s[10] = " {\n"
 	}
-	s[9] = nameTypeSliceToString(m.Func.Rets, m.strct.PackageName(), false)
+	s[9] = nameTypeSliceToString(m.strct.imports(), m.Func.Rets, false)
 	s[11] = m.Func.Body
 	s[12] = "\n}\n\n"
 	return strings.Join(s, "")
