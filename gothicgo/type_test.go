@@ -61,5 +61,5 @@ func TestMapType(t *testing.T) {
 	tp := MapOf(fb, p)
 	assert.Equal(t, "map[foo.bar]*Person", tp.RelStr(NewImports(person)), "Relative to person")
 	assert.Equal(t, "map[bar]*person.Person", tp.RelStr(NewImports(foo)))
-	assert.Equal(t, "map[foo.bar]*person.Person", tp.RelStr(nil))
+	assert.Equal(t, "map[foo.bar]*person.Person", tp.RelStr(DefaultPrefixer))
 }

@@ -4,8 +4,8 @@ import (
 	"text/template"
 )
 
-var templates = template.Must(template.New("templates").Parse(`
-{{define "insert"}}	res, err := {{.Conn}}.Exec("INSERT INTO {{.QName}} ({{.Fields}}) VALUES ({{.QM}})", {{.Args}})
+var Templates = template.Must(template.New("templates").Parse(`
+{{define "insert"}}	res, err := {{.Conn}}.Exec("INSERT INTO {{.TableNameQ}} ({{.FieldsQ}}) VALUES ({{.QM}})", {{.Args}})
 	if err != nil {
 		return err
 	}
@@ -15,24 +15,24 @@ var templates = template.Must(template.New("templates").Parse(`
 	}
 	{{.Receiver}}.{{.Primary}} = {{.PrimaryType}}(id)
 	return nil{{end}}
-{{define "update"}}	_, err := {{.Conn}}.Exec("UPDATE {{.QName}} SET ({{.Set}}) WHERE {{.QPrimary}}=?", {{.Args}}, {{.PrimaryArg}})
+{{define "update"}}	_, err := {{.Conn}}.Exec("UPDATE {{.TableNameQ}} SET ({{.Set}}) WHERE {{.PrimaryQ}}=?", {{.Args}}, {{.PrimaryArg}})
 	return err{{end}}
 {{define "createTable"}}func init() {
 	gsql.AddMigration("{{.Migration}}",
 	{{.BackTick}}CREATE TABLE IF NOT EXISTS "{{.Name}}" (
 			{{.DefineTable}}
 		);{{.BackTick}},
-	"DROP TABLE {{.QName}};")
+	"DROP TABLE {{.TableNameQ}};")
 }{{end}}
-{{define "scan"}}	{{.Receiver}} := &{{.Name}}{}{{range .ConvertFields}}
-	var {{.Name}} {{.Type}}{{end}}
+{{define "scan"}}	{{.Receiver}} := &{{.Name}}{}{{range .FieldConverters}}
+	var {{.Name}} {{.GoType}}{{end}}
 	err := rows.Scan({{.ScanFields}})
 	if err != nil {
 		return nil, err
-	}{{range .ConvertFields}}
-	{{.R}}.{{.Name}} = {{.FromDB}}({{.Name}}){{end}}
+	}{{range .FieldConverters}}
+	{{.Receiver}}.{{.Name}} = {{.FromDB}}{{end}}
 	return {{.Receiver}}, nil{{end}}
-{{define "select"}}rows, err := {{.Conn}}.Query("SELECT {{.Fields}} FROM {{.QName}} "+where, args...)
+{{define "select"}}	rows, err := {{.Conn}}.Query("SELECT {{.FieldsQ}} FROM {{.TableNameQ}} "+where, args...)
 	defer rows.Close()
 	if err != nil {
 		return nil, err
@@ -47,17 +47,7 @@ var templates = template.Must(template.New("templates").Parse(`
 	}
 	return {{.Receiver}}s, nil{{end}}
 {{define "upsert"}}	if {{.Receiver}}.{{.Primary}} != {{.PrimaryZeroVal}} {
-		_, err := {{.Conn}}.Exec("UPDATE {{.QName}} SET ({{.Set}}) WHERE {{.QPrimary}}=?", {{.Args}}, {{.PrimaryArg}})
-		return err
+	{{template "update" .}}
 	}
-	res, err := {{.Conn}}.Exec("INSERT INTO {{.QName}} ({{.Fields}}) VALUES ({{.QM}})", {{.Args}})
-	if err != nil {
-		return err
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return err
-	}
-	{{.Receiver}}.{{.Primary}} = {{.PrimaryType}}(id)
-	return nil{{end}}
+{{template "insert" .}}{{end}}
 `))

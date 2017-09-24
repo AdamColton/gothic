@@ -6,6 +6,27 @@ import (
 	"strings"
 )
 
+// Prefixer takes a PackageRef and returns the correct prefix for it. If the
+// reference is to the same pacakge we are in, it will return an empty string.
+// If it's a package imported normally. it will return the package name followed
+// by a period. If it is an aliased package, it will return the alias followed
+// by a period.
+type Prefixer interface {
+	Prefix(ref PackageRef) string
+}
+
+// DefaultPrefixer always returns the package prefix.
+var DefaultPrefixer = defaultPrefixer{}
+
+type defaultPrefixer struct{}
+
+func (defaultPrefixer) Prefix(ref PackageRef) string {
+	if ref.Name() == "" {
+		return ""
+	}
+	return ref.Name() + "."
+}
+
 // Imports is a tool for managing imports. Imports can be defined by path or
 // package and either may include an alias. The ResolvePackages method must be
 // called to resolve any packages to refs.
@@ -15,6 +36,7 @@ type Imports struct {
 	names map[string]string
 }
 
+// NewImports sets up an instance of Imports.
 func NewImports(self PackageRef) *Imports {
 	return &Imports{
 		self:  self,
@@ -33,6 +55,7 @@ func (i *Imports) Prefix(ref PackageRef) string {
 	return i.GetRefName(ref) + "."
 }
 
+// AddRefImports takes PackageRefs and adds them as imports without aliases.
 func (i *Imports) AddRefImports(refs ...PackageRef) {
 	for _, ref := range refs {
 		if ref != nil && ref.String() != "" && (i.self == nil || ref.String() != i.self.String()) {
@@ -43,6 +66,8 @@ func (i *Imports) AddRefImports(refs ...PackageRef) {
 	}
 }
 
+// AddNameImports takes package names. They will be resolved to full PackageRefs
+// when ResolvePackages is called.
 func (i *Imports) AddNameImports(names ...string) {
 	//TODO: check that name is well formed
 	for _, name := range names {
@@ -51,17 +76,25 @@ func (i *Imports) AddNameImports(names ...string) {
 		}
 	}
 }
+
+// AddRefAliasImport adds a PackageRef as an alias
 func (i *Imports) AddRefAliasImport(ref PackageRef, alias string) {
 	if ref != nil && ref.String() != "" && ref.String() != i.self.String() {
 		i.refs[ref] = alias
 	}
 }
+
+// AddNameAliasImport adds a package by name with an alias. The name will be
+// resolved when ResolvePackages is called.
 func (i *Imports) AddNameAliasImport(name, alias string) {
 	//TODO: check that pkg is well formed
 	if name != "" && alias != "" {
 		i.names[name] = alias
 	}
 }
+
+// AddImports takes another instance of Imports and adds all it's imports. This
+// runs the risk of clobbering aliases.
 func (i *Imports) AddImports(imports *Imports) {
 	// TODO: handle alias collision
 	for pkg, alias := range imports.names {
@@ -72,10 +105,13 @@ func (i *Imports) AddImports(imports *Imports) {
 	}
 }
 
+// RemoveRef removes a reference.
 func (i *Imports) RemoveRef(ref PackageRef) {
 	delete(i.refs, ref)
 }
 
+// ResolvePackages uses a resolver to find all the packages that were imported
+// by name.
 func (i *Imports) ResolvePackages(resolver ImportResolver) {
 	// TODO: handle alias collision
 	for pkg, alias := range i.names {
@@ -85,6 +121,10 @@ func (i *Imports) ResolvePackages(resolver ImportResolver) {
 	}
 }
 
+// GetRefName takes a package ref and returns the name it will be referenced by
+// in the Import context. If the package is aliased it will return the alias,
+// otherwise it will return the package name. If there is an unresolved name
+// matching the PackageRef, it will be treated as resolving to the ref.
 func (i *Imports) GetRefName(ref PackageRef) string {
 	if i == nil {
 		return ref.Name()
@@ -109,6 +149,7 @@ func (i *Imports) GetRefName(ref PackageRef) string {
 	return name
 }
 
+// String returns the imports as Go code.
 func (i *Imports) String() string {
 	ln := len(i.refs)
 	if ln == 0 {

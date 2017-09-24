@@ -5,13 +5,13 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"strings"
 )
 
-// represents a directory containing Go code.
+// Package represents a directory containing Go code. Package also fulfills the
+// PackageRef interface.
 type Package struct {
-	Name       string
-	Ref        PackageRef
+	name       string
+	importPath string
 	OutputPath string
 	files      map[string]*File
 	structs    map[string]*Struct
@@ -21,19 +21,19 @@ type Package struct {
 }
 
 var nameRe = regexp.MustCompile(`^[\w\-]+$`)
+
+// ErrBadPackageName is returned when a package name is not allowed
 var ErrBadPackageName = errStr("Bad package name")
 
+// NewPackage creates a new Package. The import path will use the ImportPath
+// set on the project.
 func NewPackage(name string) (*Package, error) {
 	if !nameRe.MatchString(name) {
 		return nil, ErrBadPackageName
 	}
-	pkgRef, err := NewPackageRef(path.Join(importPath, name))
-	if err != nil {
-		return nil, err
-	}
 	pkg := &Package{
-		Name:       name,
-		Ref:        pkgRef,
+		name:       name,
+		importPath: importPath,
 		OutputPath: path.Join(OutputPath, name),
 		files:      make(map[string]*File),
 		structs:    make(map[string]*Struct),
@@ -44,9 +44,19 @@ func NewPackage(name string) (*Package, error) {
 	return pkg, nil
 }
 
+// MustPackage calls NewPackage and panics if there is an error
+func MustPackage(name string) *Package {
+	pkg, err := NewPackage(name)
+	if err != nil {
+		panic(err)
+	}
+	return pkg
+}
+
+// Prepare calls prepare on all files
 func (p *Package) Prepare() error {
-	if p.Name != "main" {
-		p.ImportResolver().Add(p.Ref)
+	if p.name != "main" {
+		p.ImportResolver().Add(p)
 	}
 	for _, f := range p.files {
 		err := f.Prepare()
@@ -57,6 +67,7 @@ func (p *Package) Prepare() error {
 	return nil
 }
 
+// Generate calls generate on all file
 func (p *Package) Generate() error {
 	path, _ := filepath.Abs(p.OutputPath)
 	e := os.MkdirAll(path, 0777)
@@ -72,6 +83,8 @@ func (p *Package) Generate() error {
 	return nil
 }
 
+// ImportResolver gets the resolver being used for the package. If no resolver
+// is set, the AutoResolver is used.
 func (p *Package) ImportResolver() ImportResolver {
 	if p.resolver == nil {
 		return AutoResolver()
@@ -79,49 +92,76 @@ func (p *Package) ImportResolver() ImportResolver {
 	return p.resolver
 }
 
+// SetResolver used for the package.
 func (p *Package) SetResolver(r ImportResolver) { p.resolver = r }
 
-func (p *Package) Export() {
-	p.Prepare()
-	p.Generate()
-}
-
-type packageRef string
-
-func (p packageRef) String() string {
-	return string(p)
-}
-
-func (p packageRef) Name() string {
-	last := strings.LastIndex(string(p), "/")
-	if last == -1 {
-		return string(p)
+// SetImportPath sets the import path for the package not including the name
+func (p *Package) SetImportPath(path string) error {
+	if !importPathRe.MatchString(path) {
+		return ErrBadImportPath
 	}
-	return string(p[last+1:])
+	importPath = path
+	return nil
 }
 
-func (packageRef) private() {}
+// String returns the package import and fulfills the PackageRef and Type
+// interfaces.
+func (p *Package) String() string {
+	return p.importPath + p.name
+}
 
-var packageRefRegex = regexp.MustCompile(`^([\w\-\.]+\/)*[\w\-]+$`)
+// Name returns the package name and fulfills the PackageRef and Type
+// interfaces.
+func (p *Package) Name() string {
+	return p.name
+}
 
+func (*Package) privatePkgRef() {}
+
+type packageRef struct {
+	path, name string
+}
+
+func (p *packageRef) String() string {
+	return p.path
+}
+
+func (p *packageRef) Name() string {
+	return p.name
+}
+
+func (*packageRef) privatePkgRef() {}
+
+// TODO: this regex is only mostly right
+var packageRefRegex = regexp.MustCompile(`^(?:[\w\-\.]+\/)*([\w\-]+)$`)
+
+// PackageRef represents a reference to a package.
 type PackageRef interface {
 	String() string
 	Name() string
 	// PackageRef is not meant to be implemented, it's meant as an accessor to the
 	// underlying packageRef. All instances should be created with NewPackageRef
 	// to guarentee that the reference is well formed.
-	private()
+	privatePkgRef()
 }
 
+// ErrBadPackageRef indicates a poorly formatted package ref string.
 const ErrBadPackageRef = errStr("Bad Package Ref")
 
+// NewPackageRef takes the string used to import a pacakge and returns a
+// PackageRef.
 func NewPackageRef(ref string) (PackageRef, error) {
-	if !packageRefRegex.MatchString(ref) {
+	m := packageRefRegex.FindStringSubmatch(ref)
+	if len(m) == 0 {
 		return nil, ErrBadPackageRef
 	}
-	return packageRef(ref), nil
+	return &packageRef{
+		path: m[0],
+		name: m[1],
+	}, nil
 }
 
+// MustPackageRef returns a new PackageRef and panics if there is an error
 func MustPackageRef(ref string) PackageRef {
 	p, err := NewPackageRef(ref)
 	if err != nil {
@@ -130,6 +170,37 @@ func MustPackageRef(ref string) PackageRef {
 	return p
 }
 
-var pkgBuiltin = packageRef("")
+var pkgBuiltin = &packageRef{}
 
+// PkgBuiltin is the PackageRef for the builtin types
 func PkgBuiltin() PackageRef { return pkgBuiltin }
+
+// PackageVarRef represents a package variable
+type PackageVarRef interface {
+	Name() string
+	String() string
+	RelStr(Prefixer) string
+	PackageRef() PackageRef
+	Type() Type
+}
+
+// NewPackageVarRef returns a reference to a package variable
+func NewPackageVarRef(pkg PackageRef, name string, kind Type) PackageVarRef {
+	return &packageVarRef{
+		pkg:  pkg,
+		name: name,
+		kind: kind,
+	}
+}
+
+type packageVarRef struct {
+	pkg  PackageRef
+	name string
+	kind Type
+}
+
+func (pv *packageVarRef) Name() string               { return pv.name }
+func (pv *packageVarRef) String() string             { return DefaultPrefixer.Prefix(pv.pkg) + pv.name }
+func (pv *packageVarRef) RelStr(pre Prefixer) string { return pre.Prefix(pv.pkg) + pv.name }
+func (pv *packageVarRef) PackageRef() PackageRef     { return pv.pkg }
+func (pv *packageVarRef) Type() Type                 { return pv.kind }

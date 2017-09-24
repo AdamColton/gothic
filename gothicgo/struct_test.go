@@ -8,8 +8,8 @@ import (
 
 type istruct string
 
-func (i istruct) imports() *Imports {
-	return NewImports(MustPackageRef(string(i)))
+func (i istruct) Prefix(ref PackageRef) string {
+	return NewImports(MustPackageRef(string(i))).Prefix(ref)
 }
 
 func TestFieldString(t *testing.T) {
@@ -18,7 +18,7 @@ func TestFieldString(t *testing.T) {
 			N: "bar",
 			T: PointerTo(DefStruct(MustPackageRef("foo"), "bar")),
 		},
-		tags: map[string]string{},
+		Tags: make(map[string]string),
 		stct: istruct("foo"),
 	}
 	assert.Equal(t, "bar *bar", f.String())
@@ -29,7 +29,7 @@ func TestFieldString(t *testing.T) {
 	f.nameType.N = ""
 	assert.Equal(t, "*foo.bar", f.String())
 
-	f.tags["someKey"] = "someValue"
+	f.Tags["someKey"] = "someValue"
 	assert.Equal(t, "*foo.bar `someKey:\"someValue\"`", f.String())
 
 	f.nameType.N = "glorp"
@@ -43,22 +43,22 @@ func TestFieldMethods(t *testing.T) {
 			N: "bar",
 			T: PointerTo(DefStruct(MustPackageRef("foo"), "bar")),
 		},
-		tags: map[string]string{"key": "value"},
+		Tags: map[string]string{"key": "value"},
 		stct: istruct("foo"),
 	}
 
 	assert.Equal(t, "bar", f.Name())
 	assert.Equal(t, "*foo.bar", f.Type().String())
 
-	tg, ok := f.Tag("key")
+	tg, ok := f.Tags["key"]
 	assert.True(t, ok)
 	assert.Equal(t, "value", tg)
 
-	tg, ok = f.Tag("key2")
+	tg, ok = f.Tags["key2"]
 	assert.False(t, ok, "Did not expected 'key2'")
 
-	f.SetTag("key2", "value2")
-	tg, ok = f.Tag("key2")
+	f.Tags["key2"] = "value2"
+	tg, ok = f.Tags["key2"]
 	assert.True(t, ok)
 	assert.Equal(t, "value2", tg)
 }
@@ -154,7 +154,7 @@ func (t *test) foo(name string) {
 	s.AddField("time", DefStruct(MustPackageRef("time"), "Time"))
 
 	m := s.NewMethod("foo", Arg("name", StringType))
-	m.Body = "fmt.Println(\"Hi\", name)"
+	m.Body = func() (string, error) { return "fmt.Println(\"Hi\", name)", nil }
 	m.AddRefImports(MustPackageRef("fmt"))
 
 	wc := sai.New()

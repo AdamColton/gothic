@@ -6,8 +6,11 @@ type NameType struct {
 	T Type
 }
 
+// Name value
 func (n *NameType) Name() string { return n.N }
-func (n *NameType) Type() Type   { return n.T }
+
+// Type value
+func (n *NameType) Type() Type { return n.T }
 
 // Arg is a short way to create a NameType as an Arg for a Func
 func Arg(name string, typ Type) *NameType {

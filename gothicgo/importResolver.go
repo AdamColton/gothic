@@ -10,17 +10,22 @@ import (
 // TODO: add a function to check if an alias is required and add it if so,
 // so if foo is mapped to bar/glorp, return `foo "bar/glorp"
 
+// ImportResolver represents a tool for resolving import paths.
 type ImportResolver interface {
 	Resolve(pkgName string) PackageRef
 	Add(ref PackageRef)
 }
 
+// ManualResolver fulfills ImportResolver and will only resolve paths that are
+// set with the Add method.
 type ManualResolver map[string]PackageRef
 
+// Resolve a package name to a PackageRef
 func (m ManualResolver) Resolve(pkg string) PackageRef {
 	return m[pkg]
 }
 
+// Add a package ref
 func (m ManualResolver) Add(ref PackageRef) {
 	m[ref.Name()] = ref
 }
@@ -31,6 +36,9 @@ type autoResolver struct {
 
 var arSingleton *autoResolver
 
+// AutoResolver returns an ImportResolver that scans locally using the same
+// technique as go imports to find all packages. When there is a name collision,
+// Add can be still be used to override the collision.
 func AutoResolver() ImportResolver {
 	if arSingleton != nil {
 		return arSingleton
@@ -75,7 +83,7 @@ func (a *autoResolver) loadPkg(root, importpath string) {
 
 	_, pkgName := filepath.Split(importpath)
 	if _, ok := a.packages[pkgName]; !ok {
-		a.packages[pkgName] = packageRef(importpath)
+		a.packages[pkgName], _ = NewPackageRef(importpath)
 	}
 
 	pkgDir, err := os.Open(dir)

@@ -22,7 +22,7 @@ func (t *testGen) Generate() error {
 
 func TestGenerator(t *testing.T) {
 	tg := &testGen{}
-	p := New()
+	var p Project
 
 	p.AddGenerators(tg)
 	assert.False(t, tg.prepared, "tg.prepared should be false")

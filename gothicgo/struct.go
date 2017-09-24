@@ -3,9 +3,11 @@ package gothicgo
 import (
 	"fmt"
 	"go/format"
+	"sort"
 	"strings"
 )
 
+// Struct represents a Go struct.
 type Struct struct {
 	name         string
 	file         *File
@@ -16,13 +18,13 @@ type Struct struct {
 	ReceiverName string
 }
 
-// Adds a Struct to a Package, the file for the struct is automatically
+// NewStruct adds a Struct to a Package, the file for the struct is automatically
 // generated
 func (p *Package) NewStruct(name string) *Struct {
 	return p.File(name + ".gothic").NewStruct(name)
 }
 
-// Adds a new Struct to an existing file
+// NewStruct adds a new Struct to an existing file
 func (f *File) NewStruct(name string) *Struct {
 	s := &Struct{
 		name:         name,
@@ -50,7 +52,7 @@ func (s *Struct) AsRet() *NameType { return Ret(PointerTo(&sT{s})) }
 // funciton or method
 func (s *Struct) AsArg(name string) *NameType { return Arg(name, PointerTo(&sT{s})) }
 
-// AsRet is a helper for returning a pointer to the Struct in a funciton or
+// AsNmRet is a helper for returning a pointer to the Struct in a funciton or
 // method as a named return.
 func (s *Struct) AsNmRet(name string) *NameType { return NmRet(name, PointerTo(&sT{s})) }
 
@@ -62,8 +64,8 @@ func (s *Struct) File() *File { return s.file }
 // Name of the struct
 func (s *Struct) Name() string { return s.name }
 
-// PackageName gets the name of the package.
-func (s *Struct) PackageRef() PackageRef { return s.file.Package().Ref }
+// PackageRef gets the name of the package.
+func (s *Struct) PackageRef() PackageRef { return s.file.Package() }
 
 // Field returns a field by name
 func (s *Struct) Field(name string) (*Field, bool) {
@@ -71,7 +73,8 @@ func (s *Struct) Field(name string) (*Field, bool) {
 	return f, ok
 }
 
-func (s *Struct) imports() *Imports { return s.file.Imports }
+// Prefix fulfills Prefixer
+func (s *Struct) Prefix(ref PackageRef) string { return s.file.Imports.Prefix(ref) }
 
 // Fields returns the fields in order.
 func (s *Struct) Fields() []string {
@@ -80,6 +83,12 @@ func (s *Struct) Fields() []string {
 	return fs
 }
 
+// FieldCount returns how many fields the struct has
+func (s *Struct) FieldCount() int {
+	return len(s.fieldOrder)
+}
+
+// AddField to the struct
 func (s *Struct) AddField(name string, typ Type) (*Field, error) {
 	key := name
 	if name == "" {
@@ -93,7 +102,7 @@ func (s *Struct) AddField(name string, typ Type) (*Field, error) {
 			N: name,
 			T: typ,
 		},
-		tags: map[string]string{},
+		Tags: make(map[string]string),
 		stct: s,
 		//SC:   gothic.NewSC(),
 	}
@@ -102,6 +111,7 @@ func (s *Struct) AddField(name string, typ Type) (*Field, error) {
 	return f, nil
 }
 
+// Embed a type as a field
 func (s *Struct) Embed(typ Type) (*Field, error) {
 	return s.AddField("", typ)
 }
@@ -118,11 +128,13 @@ func (s *Struct) str() string {
 	return strings.Join(l, "\n")
 }
 
+// String returns the struct as Go code
 func (s *Struct) String() string {
 	b, _ := format.Source([]byte(s.str()))
 	return string(b)
 }
 
+// Prepare adds all the types to the file import
 func (s *Struct) Prepare() error {
 	for _, f := range s.fields {
 		s.file.AddRefImports(f.Type().PackageRef())
@@ -130,13 +142,26 @@ func (s *Struct) Prepare() error {
 	return nil
 }
 
+// Generate adds the Struct to the file
 func (s *Struct) Generate() error {
 	s.file.AddCode(s.str())
 	return nil
 }
 
+// PtrMethods returns a bool indication if the methods will be defined on the
+// struct literal or the struct pointer.
 func (s *Struct) PtrMethods(b bool) { s.litMethods = !b }
 
+// MethodType returns the type used when defining methods on the struct, either
+// the struct literal or a pointer to the struct.
+func (s *Struct) MethodType() Type {
+	if s.litMethods {
+		return s.Type()
+	}
+	return PointerTo(s.Type())
+}
+
+// NewMethod on the struct
 func (s *Struct) NewMethod(name string, args ...*NameType) *Method {
 	m := &Method{
 		Ptr:          !s.litMethods,
@@ -151,47 +176,51 @@ func (s *Struct) NewMethod(name string, args ...*NameType) *Method {
 	return m
 }
 
+// Method gets a method by name
 func (s *Struct) Method(name string) (*Method, bool) {
 	m, ok := s.methods[name]
 	return m, ok
 }
 
+// Field is a struct field. Tags follows the convention of `key1:"value1"
+// key2:"value2"`. If no value is defined only the key is printed.
 type Field struct {
 	nameType *NameType
-	tags     map[string]string
-	stct     interface { // this makes Field easier to test
-		imports() *Imports
-	}
-	// *gothic.SC
+	Tags     map[string]string
+	stct     Prefixer
 }
 
+// Name of the field. For an embedded field, this will be an empty string.
 func (f *Field) Name() string { return f.nameType.Name() }
-func (f *Field) Type() Type   { return f.nameType.Type() }
-func (f *Field) Tag(key string) (string, bool) {
-	t, ok := f.tags[key]
-	return t, ok
-}
-func (f *Field) SetTag(key, val string) { f.tags[key] = val }
+
+// Type of the field
+func (f *Field) Type() Type { return f.nameType.Type() }
+
+// String returns Go code for the field
 func (f *Field) String() string {
 	tags := ""
-	if len(f.tags) > 0 {
-		s := make([]string, len(f.tags)+2)
-		s[0] = " `"
-		i := 1
-		for k, v := range f.tags {
-			s[i] = fmt.Sprintf("%s:\"%s\"", k, v)
+	if len(f.Tags) > 0 {
+		s := make([]string, len(f.Tags))
+		var i int
+		for k, v := range f.Tags {
+			if v == "" {
+				s[i] = fmt.Sprintf("%s", k)
+			} else {
+				s[i] = fmt.Sprintf("%s:\"%s\"", k, v)
+			}
 			i++
 		}
-		s[i] = "`"
-		tags = strings.Join(s, "")
+		sort.Strings(s)
+		tags = " `" + strings.Join(s, " ") + "`"
 	}
-	typeString := f.Type().RelStr(f.stct.imports())
+	typeString := f.Type().RelStr(f.stct)
 	if f.Name() == "" {
 		return typeString + tags
 	}
 	return f.Name() + " " + typeString + tags
 }
 
+// StructType is just a wrapper around Type
 type StructType interface {
 	Type
 }
@@ -209,29 +238,31 @@ func (s *sT) String() string         { return s.S.PackageRef().String() + "." + 
 func (s *sT) File() *File            { return s.S.File() }
 func (s *sT) PackageRef() PackageRef { return s.S.PackageRef() }
 func (s *sT) Kind() Kind             { return StructKind }
-func (s *sT) RelStr(i *Imports) string {
-	return i.Prefix(s.S.PackageRef()) + "." + s.S.Name()
+func (s *sT) RelStr(p Prefixer) string {
+	return p.Prefix(s.S.PackageRef()) + s.S.Name()
 }
 
-type StructT struct {
+type structT struct {
 	ref  PackageRef
 	name string
 }
 
-func (s *StructT) Name() string             { return s.name }
-func (s *StructT) String() string           { return s.ref.Name() + "." + s.name }
-func (s *StructT) File() *File              { return nil }
-func (s *StructT) RelStr(i *Imports) string { return i.Prefix(s.ref) + s.name }
-func (s *StructT) PackageRef() PackageRef   { return s.ref }
-func (s *StructT) Kind() Kind               { return StructKind }
+func (s *structT) Name() string             { return s.name }
+func (s *structT) String() string           { return s.ref.Name() + "." + s.name }
+func (s *structT) File() *File              { return nil }
+func (s *structT) RelStr(p Prefixer) string { return p.Prefix(s.ref) + s.name }
+func (s *structT) PackageRef() PackageRef   { return s.ref }
+func (s *structT) Kind() Kind               { return StructKind }
 
+// DefStruct returns a StructType for a struct in a package.
 func DefStruct(ref PackageRef, name string) StructType {
-	return &StructT{
+	return &structT{
 		ref:  ref,
 		name: name,
 	}
 }
 
+// Method on a struct
 type Method struct {
 	*Func
 	Ptr          bool
@@ -239,14 +270,24 @@ type Method struct {
 	strct        *Struct
 }
 
+// SetName of the method, also updates the method map in the struct.
 func (m *Method) SetName(name string) {
-	delete(m.strct.methods, m.Func.GetName())
+	delete(m.strct.methods, m.Func.Name())
 	m.Func.SetName(name)
 	m.strct.methods[name] = m
 }
 
 // String outputs the entire function as a string
 func (m *Method) String() string {
+	str, _ := m.str()
+	return str
+}
+
+func (m *Method) str() (string, error) {
+	body, err := m.Func.Body()
+	if err != nil {
+		return "", err
+	}
 	s := make([]string, 13)
 	s[0] = "func ("
 	s[1] = m.ReceiverName
@@ -257,23 +298,28 @@ func (m *Method) String() string {
 	}
 	s[3] = m.strct.Name()
 	s[4] = ") "
-	s[5] = m.Func.GetName()
+	s[5] = m.Func.Name()
 	s[6] = "("
-	s[7] = nameTypeSliceToString(m.strct.imports(), m.Func.Args, m.Func.Variadic)
+	s[7] = nameTypeSliceToString(m.strct, m.Func.Args, m.Func.Variadic)
 	if l := len(m.Func.Rets); l > 1 || (l == 1 && m.Func.Rets[0].N != "") {
 		s[8] = ") ("
 		s[10] = ") {\n"
 	} else {
-		s[8] = ")"
+		s[8] = ") "
 		s[10] = " {\n"
 	}
-	s[9] = nameTypeSliceToString(m.strct.imports(), m.Func.Rets, false)
-	s[11] = m.Func.Body
+	s[9] = nameTypeSliceToString(m.strct, m.Func.Rets, false)
+	s[11] = body
 	s[12] = "\n}\n\n"
-	return strings.Join(s, "")
+	return strings.Join(s, ""), nil
 }
 
+// Generate writes the method to the file
 func (m *Method) Generate() error {
-	m.strct.file.AddCode(m.String())
+	str, err := m.str()
+	if err != nil {
+		return err
+	}
+	m.strct.file.AddCode(str)
 	return nil
 }

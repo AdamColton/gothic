@@ -1,7 +1,10 @@
 package gothicgo
 
+// Kind represents the different kinds of types. Two different structs will have
+// different types, but the same kind (StructKind)
 type Kind uint8
 
+// Defined Kinds
 const (
 	NoneKind = Kind(iota)
 	SliceKind
@@ -26,10 +29,8 @@ const (
 type Type interface {
 	Name() string
 	String() string
-	RelStr(*Imports) string
+	RelStr(Prefixer) string
 	PackageRef() PackageRef
 	File() *File
 	Kind() Kind
 }
-
-type RelStr func(PackageRef) string

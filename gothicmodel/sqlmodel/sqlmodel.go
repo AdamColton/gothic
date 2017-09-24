@@ -1,146 +1,130 @@
 package sqlmodel
 
 import (
-	"bytes"
-	"fmt"
 	"github.com/adamcolton/gothic/gothicgo"
 	"github.com/adamcolton/gothic/gothicmodel/gomodel"
 )
 
-var DefaultConn = "conn"
-var ConnPackage = ""
+var DefaultConn = gothicgo.NewPackageVarRef(gothicgo.MustPackageRef("github.com/adamcolton/buttress/gsql"), "Conn", nil)
 
 type SQL struct {
-	model       *gomodel.GoModel
-	helper      *helper
-	Conn        string
-	ConnPackage string
-	TableName   string
-	Migration   string
-	scanner     *gothicgo.Func
+	*gomodel.GoModel
+	Conn      gothicgo.PackageVarRef
+	TableName string
+	Migration string
+	IDQuote   string
+	scanner   *gothicgo.Func
 }
 
 func New(model *gomodel.GoModel) *SQL {
 	return &SQL{
-		model:       model,
-		Conn:        DefaultConn,
-		ConnPackage: ConnPackage,
-		TableName:   model.Model.Name(),
+		GoModel:   model,
+		Conn:      DefaultConn,
+		TableName: model.Model.Name(),
+		IDQuote:   "`",
 	}
 }
 
-func (s *SQL) getHelper(fields []string, allFields bool) *helper {
-	if s.helper == nil {
-		s.helper = createHelper(s)
-	}
+func (s *SQL) QueryBuilder(fields ...string) *QueryBuilder {
+	return s.queryBuilder(fields, false)
+}
 
-	if len(fields) == 0 {
-		if allFields {
-			s.helper.useFields = s.helper.allFields()
-		} else {
-			s.helper.useFields = s.helper.fields
-		}
-	} else {
-		s.helper.useFields = make([]string, 0, len(fields))
-		for _, field := range fields {
-			if s.helper.fieldsMap[field] {
-				s.helper.useFields = append(s.helper.useFields, field)
-			}
-		}
-	}
+func (s *SQL) QueryBuilderAll() *QueryBuilder {
+	return s.queryBuilder(nil, true)
+}
 
-	return s.helper
+func (s *SQL) Receiver() string {
+	return s.Struct.ReceiverName
+}
+
+func (s *SQL) quote(str string) string {
+	return s.IDQuote + str + s.IDQuote
+}
+
+func (s *SQL) TableNameQ() string {
+	return s.quote(s.TableName)
 }
 
 func (s *SQL) addImport() {
-	if s.ConnPackage != "" {
-		s.model.File().AddPackageImport(s.ConnPackage)
+	if pkg := s.Conn.PackageRef(); pkg != nil {
+		s.File().AddRefImports(pkg)
 	}
 }
 
-func (s *SQL) genericMethod(name string, fields []string, allFields bool) *gothicgo.Method {
-	s.addImport()
-	m := s.model.Struct.NewMethod(name)
-	m.Returns(gothicgo.Ret(gothicgo.ErrorType))
-	buf := &bytes.Buffer{}
-	err := templates.ExecuteTemplate(buf, name, s.getHelper(fields, allFields))
-	if err != nil {
-		fmt.Println(err)
-	}
-	m.Body = buf.String()
-	return m
+func (s *SQL) Primary() string {
+	return s.Model.Primary().Name()
 }
 
-func (s *SQL) genericFunction(name string, slice bool, fields []string, allFields bool) *gothicgo.Func {
-	s.addImport()
-	f := s.model.Struct.File().NewFunc(name + s.model.Name())
-	t := gothicgo.PointerTo(s.model.Type())
-	if slice {
-		t = gothicgo.SliceOf(t)
-	}
-	f.Returns(gothicgo.Ret(t), gothicgo.Ret(gothicgo.ErrorType))
-	buf := &bytes.Buffer{}
-	err := templates.ExecuteTemplate(buf, name, s.getHelper(fields, allFields))
-	if err != nil {
-		fmt.Println(err)
-	}
-	f.Body = buf.String()
-	return f
+func (s *SQL) PrimaryQ() string {
+	return s.quote(s.Model.Primary().Name())
+}
+
+func (s *SQL) PrimaryType() string {
+	return s.Model.Primary().Type()
+}
+
+func (s *SQL) PrimaryGoType() string {
+	return gomodel.Types[s.PrimaryType()].RelStr(s)
+}
+
+func (s *SQL) PrimarySqlType() string {
+	return Types[s.PrimaryType()]
 }
 
 func (s *SQL) Insert(fields ...string) *gothicgo.Method {
-	return s.genericMethod("insert", fields, false)
+	return s.QueryBuilder(fields...).GenericMethod("insert")
 }
 
 func (s *SQL) Update(fields ...string) *gothicgo.Method {
-	return s.genericMethod("update", fields, false)
+	return s.QueryBuilder(fields...).GenericMethod("update")
 }
 
 var MigrationFile *gothicgo.File
 
 func getMigrationFile() *gothicgo.File {
 	if MigrationFile == nil {
-		MigrationFile = gothicgo.NewPackage("db").File("migrations.gen")
+		pkg, _ := gothicgo.NewPackage("db")
+		MigrationFile = pkg.File("migrations.gen")
 	}
-	MigrationFile.AddPackageImport("gsql")
+	MigrationFile.AddRefImports(gothicgo.MustPackageRef("github.com/adamcolton/buttress/gsql"))
 	return MigrationFile
 }
 
-func (s *SQL) Create(migration string, fields ...string) string {
+func (s *SQL) Create(migration string, fields ...string) (string, error) {
 	s.addImport()
 	file := getMigrationFile()
 
-	buf := &bytes.Buffer{}
-	h := s.getHelper(fields, false)
-	h.Migration = migration
-	templates.ExecuteTemplate(buf, "createTable", h)
-	str := buf.String()
-	file.AddCode(str)
-	return str
+	q := s.QueryBuilder(fields...)
+	q.Migration = migration
+	str, err := q.ExecuteTemplate("createTable")
+	if err == nil {
+		file.AddCode(str)
+	}
+	return str, err
 }
 
-func (s *SQL) Scan() *gothicgo.Func {
-	scannerItfc, err := s.model.File().NewInterface("scanner")
-	if err == nil {
-		args := []gothicgo.Type{gothicgo.EmptyInterfaceType}
-		rets := []gothicgo.Type{gothicgo.ErrorType}
-		scannerItfc.AddMethod("Scan", args, rets, true)
+var GoSql = gothicgo.MustPackageRef("database/sql")
+var Scanner = gothicgo.DefInterface(GoSql, "Scanner")
+
+func (s *SQL) Scanner() *gothicgo.Func {
+	if s.scanner != nil {
+		return s.scanner
 	}
-	s.scanner = s.genericFunction("scan", false, nil, true)
-	s.scanner.Args = append(s.scanner.Args, gothicgo.Arg("rows", scannerItfc))
+	scanner := s.QueryBuilderAll().GenericFunction("scan", false)
+
+	s.File().AddRefImports(Scanner.PackageRef())
+	scanner.Args = append(scanner.Args, gothicgo.Arg("rows", Scanner))
+	s.scanner = scanner
 	return s.scanner
 }
 
 func (s *SQL) Select() *gothicgo.Func {
-	if s.scanner == nil {
-		s.Scan()
-	}
-	m := s.genericFunction("select", true, nil, true)
-	m.Args = append(m.Args, gothicgo.Arg("where", gothicgo.StringType), gothicgo.Arg("args", gothicgo.EmptyInterfaceType))
-	m.Variadic = true
-	return m
+	f := s.QueryBuilderAll().GenericFunction("select", true)
+	f.Args = append(f.Args, gothicgo.Arg("where", gothicgo.StringType), gothicgo.Arg("args", gothicgo.EmptyInterfaceType))
+	f.Variadic = true
+	return f
 }
 
 func (s *SQL) Upsert() *gothicgo.Method {
-	return s.genericMethod("upsert", nil, false)
+	return s.QueryBuilder().GenericMethod("upsert")
 }

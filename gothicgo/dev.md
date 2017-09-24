@@ -4,6 +4,9 @@
 
 * set order on methods
 
+there should be a contextual wrapper around Resolver to prevent adding a package
+to itself.
+
 Change NameType to an interface:
 type NameType interace{
   Type
@@ -17,10 +20,13 @@ all have a way to attach a comment. A file should also be able to have a package
 comment. And it would be nice to be able to generate a doc.go file from a
 comment on a package.
 
-#### Package rebuild
-Right now, we do relative package comparison by package name. But that won't
-handle collision. It also won't handle files where a package has been aliased.
 
-Packages should be referenced by their import. And I'll probably need to do a
-subtle but significant rebuild of Types so that a Type can indicate what package
-it belongs to then the file can insert the package name.
+#### Func generation
+I need to clean up how funcs are generated, I think there's still some issues
+with spaces around return values.
+
+#### Interface from Struct
+Often I have an interface that only represents a single struct, it would be nice
+to automate that. 
+
+test

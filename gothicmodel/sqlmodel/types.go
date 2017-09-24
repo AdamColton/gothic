@@ -1,5 +1,9 @@
 package sqlmodel
 
+import (
+	"github.com/adamcolton/gothic/gothicgo"
+)
+
 var Types = map[string]string{
 	"bool":  "tinyint(1) UNSIGNED DEFAULT 0 NOT NULL",
 	"byte":  "tinyint(8) UNSIGNED DEFAULT 0 NOT NULL",
@@ -24,14 +28,16 @@ var Types = map[string]string{
 }
 
 type Converter struct {
-	toDB   string
-	fromDB string
+	toDB   gothicgo.FuncCaller
+	fromDB gothicgo.FuncCaller
 }
+
+var sqlPkg = gothicgo.MustPackageRef("github.com/adamcolotn/gsql")
 
 var Converters = map[string]*Converter{
 	"datetime": &Converter{
-		toDB:   "TimeToString",
-		fromDB: "StringToTime",
+		toDB:   gothicgo.FuncCall(sqlPkg, "TimeToString"),
+		fromDB: gothicgo.FuncCall(sqlPkg, "StringToTime"),
 	},
 }
 
@@ -48,7 +54,7 @@ var ZeroVals = map[string]string{
 	//"float32":    gothicgo.Float32Type,
 	//"float64":    gothicgo.Float64Type,
 	//"rune":       gothicgo.RuneType,
-	"string": "\"\"",
+	"string": `""`,
 	"uint":   "0",
 	// "uint8":      gothicgo.Uint8Type,
 	// "uint16":     gothicgo.Uint16Type,

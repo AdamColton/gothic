@@ -17,7 +17,7 @@ func TestNameTypeSliceToString(t *testing.T) {
 func TestFuncString(t *testing.T) {
 	f := NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
 	f.Returns(Ret(PointerTo(DefStruct(PkgBuiltin(), "Person"))))
-	f.Body = "\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}"
+	f.Body = func() (string, error) { return "\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}", nil }
 
 	expected := "func Foo(name string, age int) *Person {\n\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}\n}\n\n"
 	got := f.String()
@@ -27,7 +27,7 @@ func TestFuncString(t *testing.T) {
 func TestFuncStringVariadic(t *testing.T) {
 	f := NewFunc("Foo", Arg("name", StringType), Arg("code", IntType))
 	f.Returns(Ret(PointerTo(DefStruct(PkgBuiltin(), "Person"))))
-	f.Body = "\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}"
+	f.Body = func() (string, error) { return "\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}", nil }
 	f.Variadic = true
 
 	expected := "func Foo(name string, code ...int) *Person {\n\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}\n}\n\n"
@@ -38,8 +38,6 @@ func TestFuncStringVariadic(t *testing.T) {
 func TestWriteFunc(t *testing.T) {
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
-	p.Ref, err = NewPackageRef("test")
-	assert.NoError(t, err)
 	p.OutputPath = "test"
 
 	wc := sai.New()
@@ -48,7 +46,7 @@ func TestWriteFunc(t *testing.T) {
 
 	fn := f.NewFunc("Foo", Arg("name", StringType), Arg("code", IntType))
 	fn.Returns(Ret(PointerTo(DefStruct(MustPackageRef("test"), "Person"))))
-	fn.Body = "\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}"
+	fn.Body = func() (string, error) { return "\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}", nil }
 	fn.Variadic = true
 
 	f.Prepare()
@@ -62,7 +60,7 @@ func TestFuncType(t *testing.T) {
 	f := NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
-	f.Returns(Ret(PointerTo(DefStruct(p.Ref, "Person"))))
+	f.Returns(Ret(PointerTo(DefStruct(p, "Person"))))
 	f.File = p.File("testFile")
 
 	ft := f.Type()
@@ -71,13 +69,21 @@ func TestFuncType(t *testing.T) {
 	assert.Equal(t, "func(string, int) *test.Person", ft.String())
 }
 
-func TestFuncSignature(t *testing.T) {
+func TestFuncCall(t *testing.T) {
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
-	f := p.File("testFile").NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
-	f.Returns(Ret(PointerTo(DefStruct(p.Ref, "Person"))))
+	file := p.File("test")
 
-	fs := f.RelSignature("test")
+	fc := FuncCall(p, "myFn")
+	assert.Equal(t, "myFn(Maggie, Bea)", fc.Call(file, "Maggie", "Bea"))
 
-	assert.Equal(t, "Foo(name string, age int) *Person", fs)
+	p, err = NewPackage("foo")
+	pre := NewImports(p)
+	assert.NoError(t, err)
+	assert.Equal(t, "test.myFn(Maggie, Bea)", fc.Call(pre, "Maggie", "Bea"))
+
+	fc = file.NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
+	assert.Equal(t, "Foo(adam, 32)", fc.Call(file, "adam", "32"))
+	assert.Equal(t, "test.Foo(adam, 32)", fc.Call(pre, "adam", "32"))
+
 }

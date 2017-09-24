@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// Interface is used to generate an interface
 type Interface struct {
 	name    string
 	file    *File
@@ -18,7 +19,7 @@ type interfaceMethod struct {
 	variadic bool
 }
 
-// Adds a new Struct to an existing file
+// NewInterface adds a new interface to an existing file
 func (f *File) NewInterface(name string) (*Interface, error) {
 	if i, found := f.pkg.interfaces[name]; found {
 		return i, fmt.Errorf("Duplicate Interface")
@@ -32,6 +33,7 @@ func (f *File) NewInterface(name string) (*Interface, error) {
 	return i, nil
 }
 
+// AddMethod to the interface
 func (i *Interface) AddMethod(name string, args []Type, returns []Type, variadic bool) {
 	i.methods = append(i.methods, &interfaceMethod{
 		name:     name,
@@ -41,7 +43,10 @@ func (i *Interface) AddMethod(name string, args []Type, returns []Type, variadic
 	})
 }
 
+// Prepare fulfills the generator interface
 func (i *Interface) Prepare() error { return nil }
+
+// Generate adds the interface to the file and fulfills the generator interface
 func (i *Interface) Generate() error {
 	i.file.AddCode(i.str())
 	return nil
@@ -87,30 +92,54 @@ func (im *interfaceMethod) str(imp *Imports) string {
 	return strings.Join(s, "")
 }
 
+// Name gets the interface name and fulfills the Type interface
 func (i *Interface) Name() string { return i.name }
+
+// SetName allows the name of the interface to be changed
+func (i *Interface) SetName(name string) { i.name = name }
+
+// String returns the interface package and name and fulfills the Type interface
 func (i *Interface) String() string {
 	pkg := ""
 	if i.file != nil && i.file.pkg != nil {
-		pkg = i.file.pkg.Name + "."
+		pkg = i.file.pkg.name + "."
 	}
 	return pkg + i.name
 }
-func (i *Interface) RelStr(pkg string) string {
-	ipkg := ""
-	if i.file != nil && i.file.pkg != nil && i.file.pkg.Name != pkg {
-		ipkg = i.file.pkg.Name + "."
+
+// RelStr returns a string with the interface name and package if necessary.
+func (i *Interface) RelStr(pre Prefixer) string {
+	return pre.Prefix(i.file.pkg) + i.name
+}
+
+// PackageRef for the package Interface is in, fulfills Type interface.
+func (i *Interface) PackageRef() PackageRef { return i.file.pkg }
+
+// File that the interface is in, fulfills Type interface.
+func (i *Interface) File() *File { return i.File() }
+
+// Kind returns InterfaceKind, fulfills Type interface.
+func (i *Interface) Kind() Kind { return InterfaceKind }
+
+type interfaceRef struct {
+	pkg  PackageRef
+	name string
+}
+
+// DefInterface returns a reference to an interface in a package that fulfills
+// Type.
+func DefInterface(pkg PackageRef, name string) Type {
+	return &interfaceRef{
+		pkg:  pkg,
+		name: name,
 	}
-	return ipkg + i.name
 }
-func (i *Interface) PackageName() string {
-	if i.file != nil && i.file.pkg != nil {
-		return i.file.pkg.Name
-	}
-	return ""
+
+func (i *interfaceRef) Name() string   { return i.name }
+func (i *interfaceRef) String() string { return i.pkg.Name() + "." + i.name }
+func (i *interfaceRef) RelStr(pre Prefixer) string {
+	return pre.Prefix(i.pkg) + i.name
 }
-func (i *Interface) File() *File {
-	return i.File()
-}
-func (i *Interface) Kind() Kind {
-	return InterfaceKind
-}
+func (i *interfaceRef) PackageRef() PackageRef { return i.pkg }
+func (i *interfaceRef) File() *File            { return nil }
+func (i *interfaceRef) Kind() Kind             { return InterfaceKind }
