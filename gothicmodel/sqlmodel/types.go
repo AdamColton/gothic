@@ -4,6 +4,8 @@ import (
 	"github.com/adamcolton/gothic/gothicgo"
 )
 
+// Types maps Model types to SQL types. This should be extended as new types are
+// added
 var Types = map[string]string{
 	"bool":  "tinyint(1) UNSIGNED DEFAULT 0 NOT NULL",
 	"byte":  "tinyint(8) UNSIGNED DEFAULT 0 NOT NULL",
@@ -27,6 +29,7 @@ var Types = map[string]string{
 	"datetime": "DATETIME",
 }
 
+// Converter defines how to convert a value to and from the database.
 type Converter struct {
 	toDB   gothicgo.FuncCaller
 	fromDB gothicgo.FuncCaller
@@ -34,6 +37,7 @@ type Converter struct {
 
 var sqlPkg = gothicgo.MustPackageRef("github.com/adamcolotn/gsql")
 
+// Converters maps Model types to Converters
 var Converters = map[string]*Converter{
 	"datetime": &Converter{
 		toDB:   gothicgo.FuncCall(sqlPkg, "TimeToString"),
@@ -41,6 +45,7 @@ var Converters = map[string]*Converter{
 	},
 }
 
+// ZeroVals defines the zero value in SQL for Model types
 var ZeroVals = map[string]string{
 	"bool":  "0",
 	"byte":  "0",

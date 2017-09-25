@@ -70,10 +70,14 @@ func (q *QueryBuilder) append(field gomodel.Field) {
 	q.args = append(q.args, q.arg(field))
 }
 
+// Fields returns all the fields used in the query builder as a comma delimited
+// list
 func (q *QueryBuilder) Fields() string {
 	return strings.Join(q.fields, ", ")
 }
 
+// FieldsQ returns all the fields used in the query builder as a comma delimited
+// list with each field wrapped in an IDQuote
 func (q *QueryBuilder) FieldsQ() string {
 	return q.IDQuote + strings.Join(q.fields, q.IDQuote+", "+q.IDQuote) + q.IDQuote
 }
@@ -85,6 +89,8 @@ func (q *QueryBuilder) allFields() []string {
 	return fs
 }
 
+// QM returns a list of question marks the length of Fields for constructing
+// a query.
 func (q *QueryBuilder) QM() string {
 	qm := make([]string, len(q.fields))
 	for i := range qm {
@@ -93,14 +99,18 @@ func (q *QueryBuilder) QM() string {
 	return strings.Join(qm, ", ")
 }
 
+// Args returns the fields as args to be passed into a call to Exec. Fields that
+// need to pass through a converter will be replaced by a local variable.
 func (q *QueryBuilder) Args() string {
 	return strings.Join(q.args, ", ")
 }
 
+// PrimaryArg returns the arg for the primary fields
 func (q *QueryBuilder) PrimaryArg() string {
 	return q.primaryArg
 }
 
+// Set returns each field followed by "=?" for a call to set.
 func (q *QueryBuilder) Set() string {
 	set := make([]string, len(q.fields))
 	for i, field := range q.fields {
@@ -109,20 +119,25 @@ func (q *QueryBuilder) Set() string {
 	return strings.Join(set, ", ")
 }
 
+// PrimaryZeroVal gets the zero value of the primary field
 func (q *QueryBuilder) PrimaryZeroVal() string {
 	return ZeroVals[q.PrimaryType()]
 }
 
+// Conn gets the SQL connection as a string
 func (q *QueryBuilder) Conn() string {
 	return q.SQL.Conn.RelStr(q.File())
 }
 
+// BackTick allows a backtick to be injected into a template
 func (q *QueryBuilder) BackTick() string { return "`" }
 
+// ExecuteTemplate by name and pass the QueryBuilder in as the data.
 func (q *QueryBuilder) ExecuteTemplate(name string) (string, error) {
 	return bufpool.ExecuteTemplate(Templates, name, q)
 }
 
+// GenericMethod takes a template name and wraps it in a method on the struct.
 func (q *QueryBuilder) GenericMethod(name string) *gothicgo.Method {
 	q.addImport()
 	m := q.Struct.NewMethod(name)
@@ -133,6 +148,8 @@ func (q *QueryBuilder) GenericMethod(name string) *gothicgo.Method {
 	return m
 }
 
+// GenericFunction takes a template and wraps it in a function that returns
+// either a single instance or a slice of the struct.
 func (q *QueryBuilder) GenericFunction(name string, slice bool) *gothicgo.Func {
 	q.addImport()
 	fn := q.File().NewFunc(name + q.Name())
@@ -147,28 +164,31 @@ func (q *QueryBuilder) GenericFunction(name string, slice bool) *gothicgo.Func {
 	return fn
 }
 
+// DefineTable returns the create statement for the table
 func (q *QueryBuilder) DefineTable() string {
 	var rows []string
 
 	if q.Primary() != "" {
 		rows = append(rows,
-			fmt.Sprintf("\"%s\" %s", q.Primary(), q.PrimarySqlType()),
+			fmt.Sprintf("\"%s\" %s", q.Primary(), q.PrimarySQLType()),
 			fmt.Sprintf("PRIMARY KEY(\"%s\")", q.Primary()),
 		)
 	}
 
 	for _, field := range q.fields {
 		f, _ := q.Field(field)
-		rows = append(rows, fmt.Sprintf("\"%s\" %s", field, f.SqlType))
+		rows = append(rows, fmt.Sprintf("\"%s\" %s", field, f.SQLType))
 	}
 	return strings.Join(rows, ",\n\t\t\t")
 }
 
+// QueryBuilderField wraps the gomodel Field and includes the SQL type
 type QueryBuilderField struct {
 	gomodel.Field
-	SqlType string
+	SQLType string
 }
 
+// Field gets a field by name
 func (q *QueryBuilder) Field(name string) (*QueryBuilderField, bool) {
 	gf, ok := q.GoModel.Field(name)
 	if !ok {
@@ -180,24 +200,30 @@ func (q *QueryBuilder) Field(name string) (*QueryBuilderField, bool) {
 	}
 	return &QueryBuilderField{
 		Field:   gf,
-		SqlType: st,
+		SQLType: st,
 	}, true
 }
 
+// FieldConverter ... I don't remember how this works.
 type FieldConverter struct {
 	q *QueryBuilder
 	*QueryBuilderField
 	*Converter
 }
 
+// FromDB converts a value from the database and returns a value of the type
+// used in the struct
 func (f *FieldConverter) FromDB() string {
 	return f.fromDB.Call(f.q.File(), f.Name())
 }
 
+// ToDB converts a value from the type used in the struct to a value that can be
+// passed to the database.
 func (f *FieldConverter) ToDB() string {
 	return f.toDB.Call(f.q.File(), f.q.Receiver()+"."+f.Name())
 }
 
+// Receiver returns the variable used as the reciver on the struct
 func (f *FieldConverter) Receiver() string {
 	return f.q.Receiver()
 }
@@ -223,16 +249,20 @@ func (q *QueryBuilder) populateConverters() {
 	}
 }
 
+// FieldConverters returns FieldConverters
 func (q *QueryBuilder) FieldConverters() []FieldConverter {
 	q.populateConverters()
 	return q.fieldConverters
 }
 
+// ScanFields knows what you think
 func (q *QueryBuilder) ScanFields() string {
 	q.populateConverters()
 	return q.scanFields
 }
 
+// Scanner returns the function that scans a SQL row into an instance of the
+// struct
 func (q *QueryBuilder) Scanner() string {
 	scanner := q.SQL.Scanner()
 	return scanner.Name()

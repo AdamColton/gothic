@@ -4,18 +4,24 @@ import (
 	"fmt"
 )
 
+// Field represents a field on a model
 type Field struct {
 	name    string
 	kind    string
 	primary bool
 }
 
+// Name of the field
 func (f Field) Name() string { return f.name }
 
+// Type of the field
 func (f Field) Type() string { return f.kind }
 
+// Primary returns true if the field is the primary field
 func (f Field) Primary() bool { return f.primary }
 
+// Model is a generalization of a data structure. It has a name and some number
+// of fields one of which is the primary field
 type Model struct {
 	name      string
 	fieldsMap map[string]Field
@@ -23,8 +29,10 @@ type Model struct {
 	primary   Field
 }
 
+// Fields is used to define the fields on a model.
 type Fields [][2]string
 
+// New model
 func New(name string, fields Fields) (*Model, error) {
 	m := &Model{
 		name:      name,
@@ -40,6 +48,7 @@ func New(name string, fields Fields) (*Model, error) {
 	return m, nil
 }
 
+// Must creates a new model and panics if there is an error
 func Must(name string, fields Fields) *Model {
 	m, err := New(name, fields)
 	if err != nil {
@@ -48,6 +57,7 @@ func Must(name string, fields Fields) *Model {
 	return m
 }
 
+// AddFields to a model
 func (m *Model) AddFields(fields Fields) error {
 	names := make(map[string]struct{})
 	for _, field := range fields {
@@ -65,6 +75,7 @@ func (m *Model) AddFields(fields Fields) error {
 	return nil
 }
 
+// AddField by name and kind
 func (m *Model) AddField(name, kind string) (Field, error) {
 	if err := m.validate(name, kind); err != nil {
 		return Field{}, err
@@ -100,6 +111,7 @@ func (m *Model) validate(name, kind string) error {
 	return nil
 }
 
+// AddPrimary changes which field is primary
 func (m *Model) AddPrimary(name, kind string) (Field, error) {
 	if len(m.fields) == 0 {
 		return m.AddField(name, kind)
@@ -125,11 +137,15 @@ func (m *Model) AddPrimary(name, kind string) (Field, error) {
 	return f, nil
 }
 
+// Field gets a field by name
 func (m *Model) Field(name string) (Field, bool) {
 	k, b := m.fieldsMap[name]
 	return k, b
 }
 
+// Fields returns the fiels on the model. If no field names are given, all
+// fields are returned. If a list of names is given, only those fields are
+// returned.
 func (m *Model) Fields(names ...string) []Field {
 	if names == nil {
 		cp := make([]Field, len(m.fields))
@@ -145,14 +161,17 @@ func (m *Model) Fields(names ...string) []Field {
 	return fields
 }
 
+// Name of the model
 func (m *Model) Name() string {
 	return m.name
 }
 
+// Primary field on the model
 func (m *Model) Primary() Field {
 	return m.primary
 }
 
+// SkipFields returns all fields excluding those defined to skip
 func (m *Model) SkipFields(skip ...string) []Field {
 	sm := make(map[string]bool, len(skip))
 	for _, s := range skip {

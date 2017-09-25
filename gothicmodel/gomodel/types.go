@@ -4,6 +4,8 @@ import (
 	"github.com/adamcolton/gothic/gothicgo"
 )
 
+// Types maps model Type stirngs to go types. This should be extended as new
+// types are defined.
 var Types = map[string]gothicgo.Type{
 	"bool":       gothicgo.BoolType,
 	"byte":       gothicgo.ByteType,

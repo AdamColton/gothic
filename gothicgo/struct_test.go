@@ -75,7 +75,8 @@ func TestStructString(t *testing.T) {
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
 	p.OutputPath = "test"
-	s := p.NewStruct("test")
+	s, err := p.NewStruct("test")
+	assert.NoError(t, err)
 	s.AddField("foo", PointerTo(DefStruct(foo, "Foo")))
 	s.AddField("bar", PointerTo(DefStruct(foo, "Bar")))
 	s.Embed(PointerTo(DefStruct(foo, "Glorp")))
@@ -88,7 +89,8 @@ func TestImportString(t *testing.T) {
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
 	p.OutputPath = "test"
-	s := p.NewStruct("test")
+	s, err := p.NewStruct("test")
+	assert.NoError(t, err)
 	timePkg := MustPackageRef("time")
 	s.AddField("time", DefStruct(timePkg, "Time"))
 	s.Prepare()
@@ -116,7 +118,8 @@ type test struct {
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
 	p.OutputPath = "test"
-	s := p.NewStruct("test")
+	s, err := p.NewStruct("test")
+	assert.NoError(t, err)
 	s.AddField("time", DefStruct(MustPackageRef("time"), "Time"))
 
 	wc := sai.New()
@@ -150,7 +153,8 @@ func (t *test) foo(name string) {
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
 	p.OutputPath = "test"
-	s := p.NewStruct("test")
+	s, err := p.NewStruct("test")
+	assert.NoError(t, err)
 	s.AddField("time", DefStruct(MustPackageRef("time"), "Time"))
 
 	m := s.NewMethod("foo", Arg("name", StringType))

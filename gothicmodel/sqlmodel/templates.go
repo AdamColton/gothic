@@ -4,6 +4,7 @@ import (
 	"text/template"
 )
 
+// Templates for generating SQL methods and functions.
 var Templates = template.Must(template.New("templates").Parse(`
 {{define "insert"}}	res, err := {{.Conn}}.Exec("INSERT INTO {{.TableNameQ}} ({{.FieldsQ}}) VALUES ({{.QM}})", {{.Args}})
 	if err != nil {

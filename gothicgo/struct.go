@@ -20,12 +20,16 @@ type Struct struct {
 
 // NewStruct adds a Struct to a Package, the file for the struct is automatically
 // generated
-func (p *Package) NewStruct(name string) *Struct {
+func (p *Package) NewStruct(name string) (*Struct, error) {
 	return p.File(name + ".gothic").NewStruct(name)
 }
 
 // NewStruct adds a new Struct to an existing file
-func (f *File) NewStruct(name string) *Struct {
+func (f *File) NewStruct(name string) (*Struct, error) {
+	pkg := f.Package()
+	if _, exists := pkg.structs[name]; exists {
+		return nil, fmt.Errorf("Struct %d already exists in %d", name, pkg.Name())
+	}
 	s := &Struct{
 		name:         name,
 		file:         f,
@@ -34,7 +38,8 @@ func (f *File) NewStruct(name string) *Struct {
 		ReceiverName: strings.ToLower(string([]rune(name)[0])),
 	}
 	f.AddGenerators(s)
-	return s
+	pkg.structs[name] = s
+	return s, nil
 }
 
 // Type returns an object that fulfills the Type interface for this Struct

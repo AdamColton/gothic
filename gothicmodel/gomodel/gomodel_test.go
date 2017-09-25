@@ -17,7 +17,8 @@ func TestGoModel(t *testing.T) {
 
 	pkg, err := gothicgo.NewPackage("test")
 	assert.NoError(t, err)
-	gm := Struct(pkg, m)
+	gm, err := Struct(pkg, m)
+	assert.NoError(t, err)
 
 	gm.Prepare()
 	s := gm.String()

@@ -5,8 +5,12 @@ import (
 	"github.com/adamcolton/gothic/gothicmodel"
 )
 
-func Struct(pkg *gothicgo.Package, model *gothicmodel.Model) *GoModel {
-	s := pkg.NewStruct(model.Name())
+// Struct creats a Go struct from a gothic model.
+func Struct(pkg *gothicgo.Package, model *gothicmodel.Model) (*GoModel, error) {
+	s, err := pkg.NewStruct(model.Name())
+	if err != nil {
+		return nil, err
+	}
 	for _, field := range model.Fields() {
 		t, ok := Types[field.Type()]
 		if !ok {
@@ -17,30 +21,34 @@ func Struct(pkg *gothicgo.Package, model *gothicmodel.Model) *GoModel {
 	return &GoModel{
 		Struct: s,
 		Model:  model,
-	}
+	}, nil
 }
 
+// GoModel embeds a Struct and includes a reference to the Model that generated
+// it
 type GoModel struct {
 	*gothicgo.Struct
 	Model *gothicmodel.Model
 }
 
+// Fields lists the Fields on the Model
 func (g *GoModel) Fields() []Field {
-	gm_fs := g.Model.Fields()
-	gg_fs := make([]Field, 0, g.Struct.FieldCount())
-	for _, f := range gm_fs {
+	gmFs := g.Model.Fields()
+	ggFs := make([]Field, 0, g.Struct.FieldCount())
+	for _, f := range gmFs {
 		kind, ok := Types[f.Type()]
 		if !ok {
 			continue
 		}
-		gg_fs = append(gg_fs, Field{
+		ggFs = append(ggFs, Field{
 			base: f,
 			kind: kind,
 		})
 	}
-	return gg_fs
+	return ggFs
 }
 
+// Field returns a Field by name
 func (g *GoModel) Field(name string) (Field, bool) {
 	var field Field
 	mf, ok := g.Model.Field(name)
@@ -56,12 +64,20 @@ func (g *GoModel) Field(name string) (Field, bool) {
 	return field, true
 }
 
+// Field holds the information for both the Go Struct field an the Model field.
 type Field struct {
 	base gothicmodel.Field
 	kind gothicgo.Type
 }
 
-func (f Field) Name() string          { return f.base.Name() }
-func (f Field) Type() string          { return f.base.Type() }
-func (f Field) Primary() bool         { return f.base.Primary() }
+// Name of the field, which is the same in the Model and the Struct
+func (f Field) Name() string { return f.base.Name() }
+
+// Type from the model, returns a string.
+func (f Field) Type() string { return f.base.Type() }
+
+// Primary returns true if this is the primary field for the model
+func (f Field) Primary() bool { return f.base.Primary() }
+
+// GoType returns the type of the field in Go.
 func (f Field) GoType() gothicgo.Type { return f.kind }

@@ -23,7 +23,10 @@ func setup() *SQL {
 	if err != nil {
 		panic(err)
 	}
-	gm := gomodel.Struct(pkg, m)
+	gm, err := gomodel.Struct(pkg, m)
+	if err != nil {
+		panic(err)
+	}
 
 	return New(gm)
 }
@@ -39,7 +42,7 @@ func TestQueryBuilder(t *testing.T) {
 	assert.Equal(t, "`ID`", q.PrimaryQ())
 	assert.Equal(t, "uint", q.PrimaryType())
 	assert.Equal(t, gothicgo.UintType.String(), q.PrimaryGoType())
-	assert.Equal(t, Types["uint"], q.PrimarySqlType())
+	assert.Equal(t, Types["uint"], q.PrimarySQLType())
 	assert.Equal(t, "Name, Age, LastLogin", q.Fields())
 	assert.Equal(t, "`Name`, `Age`, `LastLogin`", q.FieldsQ())
 	assert.Equal(t, "?, ?, ?", q.QM())
