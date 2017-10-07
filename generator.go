@@ -13,6 +13,7 @@ type Generator interface {
 	Generate() error
 }
 
+// State consts for generators
 const (
 	StateError = int8(iota - 1)
 	StateReady
@@ -72,7 +73,7 @@ func (p *Project) Export() error {
 	return p.Generate()
 }
 
-// AddGenerator adds a generator to the project
+// AddGenerators adds a generator to the project
 func (p *Project) AddGenerators(g ...Generator) error {
 	if p.state != StateReady {
 		return fmt.Errorf("Bad State")
@@ -83,7 +84,7 @@ func (p *Project) AddGenerators(g ...Generator) error {
 
 var allGenerators = New()
 
-// AddGenerator adds a generator to the global Project
+// AddGenerators adds a generator to the global Project
 func AddGenerators(g ...Generator) error { return allGenerators.AddGenerators(g...) }
 
 // Prepare calls Prepare() on the global Project

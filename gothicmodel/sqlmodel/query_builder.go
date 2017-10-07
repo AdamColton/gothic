@@ -167,9 +167,7 @@ func (q *QueryBuilder) GenericMethod(name string) *gothicgo.Method {
 	q.addImport()
 	m := q.Struct.NewMethod(name)
 	m.Returns(gothicgo.Ret(gothicgo.ErrorType))
-	m.Body = func() (string, error) {
-		return q.ExecuteTemplate(name)
-	}
+	m.Body = q.TemplateWriteTo(name)
 	return m
 }
 
@@ -183,9 +181,7 @@ func (q *QueryBuilder) GenericFunction(name string, slice bool) *gothicgo.Func {
 		t = gothicgo.SliceOf(t)
 	}
 	fn.Returns(gothicgo.Ret(t), gothicgo.Ret(gothicgo.ErrorType))
-	fn.Body = func() (string, error) {
-		return q.ExecuteTemplate(name)
-	}
+	fn.Body = q.TemplateWriteTo(name)
 	return fn
 }
 

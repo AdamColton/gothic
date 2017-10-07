@@ -1,6 +1,7 @@
 package gothicgo
 
 import (
+	"fmt"
 	"github.com/adamcolton/gothic/bufpool"
 	"github.com/adamcolton/gothic/gothicio"
 	"io"
@@ -13,7 +14,7 @@ type Func struct {
 	name     string
 	Args     []*NameType
 	Rets     []*NameType
-	Body     func() (string, error)
+	Body     io.WriterTo
 	Variadic bool
 	//TODO: now that Imports is shared with file, this shouldn't be exported.
 	File *File
@@ -59,9 +60,9 @@ func nameTypeSliceToString(pre Prefixer, nts []*NameType, variadic bool) string 
 		if ts := nts[i].T.RelStr(pre); i < l && ts == nts[i+1].T.RelStr(pre) {
 			s[i] = nts[i].N
 		} else if i == l && variadic {
-			s[i] = nts[i].N + " ..." + ts
+			s[i] = fmt.Sprintf("%s ...%s", nts[i].N, ts)
 		} else if nts[i].N != "" {
-			s[i] = nts[i].N + " " + ts
+			s[i] = fmt.Sprintf("%s %s", nts[i].N, ts)
 		} else {
 			s[i] = ts
 		}
@@ -80,15 +81,11 @@ func (f *Func) String() string {
 
 func (f *Func) WriteTo(w io.Writer) (int64, error) {
 	s := gothicio.NewSumWriter(w)
-	body, err := f.Body()
-	if err != nil {
-		return 0, err
-	}
 	s.WriteString("func ")
 	s.WriteString(f.name)
 	writeArgsRets(s, f.Imports, f.Args, f.Rets, f.Variadic)
 	s.WriteString(" {\n")
-	s.WriteString(body)
+	f.Body.WriteTo(s)
 	s.WriteString("\n}\n\n")
 	return s.Sum, s.Err
 }
@@ -108,7 +105,7 @@ func (f *Func) Prepare() error {
 
 // Generate writes the function to the file
 func (f *Func) Generate() error {
-	f.File.AddWriteTo(f)
+	f.File.AddWriterTo(f)
 	return nil
 }
 
@@ -221,13 +218,13 @@ func (f *funcCall) Call(pre Prefixer, args ...string) string {
 	return str
 }
 
-func writeArgsRets(s *gothicio.SumWriter, pre Prefixer, args, rets []*NameType, variadic bool) {
-	s.WriteRune('(')
+func writeArgsRets(s gothicio.StringWriter, pre Prefixer, args, rets []*NameType, variadic bool) {
+	s.WriteString("(")
 	s.WriteString(nameTypeSliceToString(pre, args, variadic))
 	if l := len(rets); l > 1 || (l == 1 && rets[0].N != "") {
 		s.WriteString(") (")
 		s.WriteString(nameTypeSliceToString(pre, rets, false))
-		s.WriteRune(')')
+		s.WriteString(")")
 	} else {
 		s.WriteString(") ")
 		if l == 1 {

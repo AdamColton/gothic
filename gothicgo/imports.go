@@ -1,11 +1,10 @@
 package gothicgo
 
 import (
-	"fmt"
+	"github.com/adamcolton/gothic/bufpool"
 	"github.com/adamcolton/gothic/gothicio"
 	"io"
 	"sort"
-	"strings"
 )
 
 // Prefixer takes a PackageRef and returns the correct prefix for it. If the
@@ -153,24 +152,9 @@ func (i *Imports) GetRefName(ref PackageRef) string {
 
 // String returns the imports as Go code.
 func (i *Imports) String() string {
-	ln := len(i.refs)
-	if ln == 0 {
-		return ""
-	}
-	l := make([]string, ln+3)
-	l[0] = "import ("
-	j := 1
-	for path, alias := range i.refs {
-		if alias == "" {
-			l[j] = fmt.Sprintf("\t\"%s\"", path)
-		} else {
-			l[j] = fmt.Sprintf("\t%s \"%s\"", alias, path)
-		}
-		j++
-	}
-	l[j] = ")"
-	sort.Strings(l[1 : ln+1])
-	return strings.Join(l, "\n")
+	buf := bufpool.Get()
+	i.WriteTo(buf)
+	return bufpool.PutStr(buf)
 }
 
 // String returns the imports as Go code.
@@ -182,16 +166,24 @@ func (i *Imports) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
 	sum.WriteString("import (")
 
-	for path, alias := range i.refs {
-		sum.WriteString("\t")
-		if alias != "" {
+	refs := make([]PackageRef, 0, len(i.refs))
+	for path := range i.refs {
+		refs = append(refs, path)
+	}
+	sort.Slice(refs, func(i, j int) bool {
+		return refs[i].String() < refs[j].String()
+	})
+
+	for _, path := range refs {
+		sum.WriteString("\n\t")
+		if alias := i.refs[path]; alias != "" {
 			sum.WriteString(alias)
 			sum.WriteString(" ")
 		}
 		sum.WriteString("\"")
 		sum.WriteString(path.String())
-		sum.WriteString("\"\n")
+		sum.WriteString("\"")
 	}
-	sum.WriteString(")\n\n")
+	sum.WriteString("\n)\n")
 	return sum.Sum, sum.Err
 }

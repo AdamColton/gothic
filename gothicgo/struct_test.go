@@ -158,7 +158,7 @@ func (t *test) foo(name string) {
 	s.AddField("time", DefStruct(MustPackageRef("time"), "Time"))
 
 	m := s.NewMethod("foo", Arg("name", StringType))
-	m.Body = func() (string, error) { return "fmt.Println(\"Hi\", name)", nil }
+	m.Body = writeToString("fmt.Println(\"Hi\", name)")
 	m.AddRefImports(MustPackageRef("fmt"))
 
 	wc := sai.New()

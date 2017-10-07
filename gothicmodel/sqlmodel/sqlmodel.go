@@ -116,7 +116,7 @@ func (s *SQL) Create(migration string, fields ...string) io.WriterTo {
 	q := s.QueryBuilder(fields...)
 	q.Migration = migration
 	wt := q.TemplateWriteTo("createTable")
-	file.AddWriteTo(wt)
+	file.AddWriterTo(wt)
 	return wt
 }
 

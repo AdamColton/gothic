@@ -140,11 +140,16 @@ func (s *Struct) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
 	sum.WriteString("type ")
 	sum.WriteString(s.name)
-	sum.WriteString(" struct {\n")
+	sum.WriteString(" struct {")
 	for _, f := range s.fieldOrder {
-		sum.Wrap(s.fields[f])
+		sum.WriteString("\n\t")
+		s.fields[f].WriteTo(sum)
 	}
-	sum.WriteString("}")
+	if len(s.fieldOrder) > 0 {
+		sum.WriteString("\n}\n")
+	} else {
+		sum.WriteString("}\n")
+	}
 	return sum.Sum, sum.Err
 }
 
@@ -164,7 +169,7 @@ func (s *Struct) Prepare() error {
 
 // Generate adds the Struct to the file
 func (s *Struct) Generate() error {
-	s.file.AddWriteTo(s)
+	s.file.AddWriterTo(s)
 	return nil
 }
 
@@ -242,7 +247,6 @@ func (f *Field) String() string {
 
 func (f *Field) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
-
 	if name := f.Name(); name != "" {
 		sum.WriteString(name)
 		sum.WriteString(" ")
@@ -252,7 +256,7 @@ func (f *Field) WriteTo(w io.Writer) (int64, error) {
 	if len(f.Tags) > 0 {
 		sum.WriteString(" `")
 		tags := make([]string, 0, len(f.Tags))
-		for k, _ := range f.Tags {
+		for k := range f.Tags {
 			tags = append(tags, k)
 		}
 		sort.Strings(tags)
@@ -269,7 +273,6 @@ func (f *Field) WriteTo(w io.Writer) (int64, error) {
 		}
 		sum.WriteString("`")
 	}
-	sum.WriteString("\n")
 
 	return sum.Sum, sum.Err
 }
@@ -340,11 +343,6 @@ func (m *Method) String() string {
 
 func (m *Method) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
-	body, err := m.Func.Body()
-	if err != nil {
-		return 0, err
-	}
-
 	sum.WriteString("func (")
 	sum.WriteString(m.ReceiverName)
 	if m.Ptr {
@@ -355,25 +353,15 @@ func (m *Method) WriteTo(w io.Writer) (int64, error) {
 	sum.WriteString(m.strct.Name())
 	sum.WriteString(") ")
 	sum.WriteString(m.Func.Name())
-	sum.WriteString("(")
-	sum.WriteString(nameTypeSliceToString(m.strct, m.Func.Args, m.Func.Variadic))
-	var end string
-	if l := len(m.Func.Rets); l > 1 || (l == 1 && m.Func.Rets[0].N != "") {
-		sum.WriteString(") (")
-		end = ") {\n"
-	} else {
-		sum.WriteString(") ")
-		end = " {\n"
-	}
-	sum.WriteString(nameTypeSliceToString(m.strct, m.Func.Rets, false))
-	sum.WriteString(end)
-	sum.WriteString(body)
-	sum.WriteString("\n}\n\n")
+	writeArgsRets(sum, m.strct, m.Func.Args, m.Func.Rets, m.Func.Variadic)
+	sum.WriteString("{\n\t")
+	m.Func.Body.WriteTo(sum)
+	sum.WriteString("\n}")
 	return sum.Sum, sum.Err
 }
 
 // Generate writes the method to the file
 func (m *Method) Generate() error {
-	m.strct.file.AddWriteTo(m)
+	m.strct.file.AddWriterTo(m)
 	return nil
 }

@@ -11,14 +11,7 @@ import (
 type Interface struct {
 	name    string
 	file    *File
-	methods []*interfaceMethod
-}
-
-type interfaceMethod struct {
-	name     string
-	args     []Type
-	rets     []Type
-	variadic bool
+	methods []io.WriterTo
 }
 
 // NewInterface adds a new interface to an existing file
@@ -42,6 +35,7 @@ func (i *Interface) AddMethod(name string, args []Type, returns []Type, variadic
 		args:     args,
 		rets:     returns,
 		variadic: variadic,
+		ifc:      i,
 	})
 }
 
@@ -50,7 +44,7 @@ func (i *Interface) Prepare() error { return nil }
 
 // Generate adds the interface to the file and fulfills the generator interface
 func (i *Interface) Generate() error {
-	i.file.AddWriteTo(i)
+	i.file.AddWriterTo(i)
 	return nil
 }
 
@@ -58,45 +52,28 @@ func (i *Interface) WriteTo(w io.Writer) (int64, error) {
 	s := gothicio.NewSumWriter(w)
 	s.WriteString("type ")
 	s.WriteString(i.Name())
-	s.WriteString(" interface{\n")
-	for _, im := range i.methods {
-		s.WriteString("\t")
-		s.WriteString(im.str(i.file.Imports))
-		s.WriteString("\n")
+	s.WriteString(" interface{")
+	gothicio.MultiWrite(s, i.methods, "\n\t")
+	if len(i.methods) > 0 {
+		s.WriteString("\n}\n\n")
+	} else {
+		s.WriteString("}\n\n")
 	}
-	s.WriteString("}\n\n")
 	return s.Sum, s.Err
 }
 
-func typeSliceToString(ts []Type, imp *Imports, variadic bool) string {
+func typeSliceToString(ts []Type, pre Prefixer, variadic bool) string {
 	l := len(ts)
 	var s = make([]string, l)
 	l--
 	for i, t := range ts {
 		if i == l && variadic {
-			s[i] = " ..." + t.RelStr(imp)
+			s[i] = " ..." + t.RelStr(pre)
 		} else {
-			s[i] = t.RelStr(imp)
+			s[i] = t.RelStr(pre)
 		}
 	}
 	return strings.Join(s, ", ")
-}
-
-func (im *interfaceMethod) str(imp *Imports) string {
-	s := make([]string, 6)
-	s[0] = im.name
-	s[1] = "("
-	s[2] = typeSliceToString(im.args, imp, im.variadic)
-	if l := len(im.rets); l > 1 {
-		s[3] = ") ("
-		s[5] = ")"
-	} else {
-		s[3] = ") "
-		s[5] = ""
-	}
-	s[4] = typeSliceToString(im.rets, imp, false)
-
-	return strings.Join(s, "")
 }
 
 // Name gets the interface name and fulfills the Type interface
@@ -127,6 +104,33 @@ func (i *Interface) File() *File { return i.File() }
 
 // Kind returns InterfaceKind, fulfills Type interface.
 func (i *Interface) Kind() Kind { return InterfaceKind }
+
+type interfaceMethod struct {
+	name     string
+	args     []Type
+	rets     []Type
+	variadic bool
+	ifc      *Interface
+}
+
+func (im *interfaceMethod) WriteTo(w io.Writer) (int64, error) {
+	s := gothicio.NewSumWriter(w)
+	s.WriteString(im.name)
+	s.WriteString("(")
+	s.WriteString(typeSliceToString(im.args, im.ifc.file.Imports, im.variadic))
+	var end string
+	if l := len(im.rets); l > 1 {
+		s.WriteString(") (")
+		end = ")"
+	} else {
+		s.WriteString(") ")
+		end = ""
+	}
+	s.WriteString(typeSliceToString(im.rets, im.ifc.file.Imports, false))
+	s.WriteString(end)
+
+	return s.Sum, s.Err
+}
 
 type interfaceRef struct {
 	pkg  PackageRef

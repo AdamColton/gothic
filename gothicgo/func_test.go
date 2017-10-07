@@ -3,8 +3,16 @@ package gothicgo
 import (
 	"github.com/adamcolton/sai"
 	"github.com/stretchr/testify/assert"
+	"io"
 	"testing"
 )
+
+type writeToString string
+
+func (s writeToString) WriteTo(w io.Writer) (int64, error) {
+	n, err := w.Write([]byte(s))
+	return int64(n), err
+}
 
 func TestNameTypeSliceToString(t *testing.T) {
 	s := []*NameType{Arg("first", StringType), Arg("middle", StringType), Arg("last", StringType), Arg("title", StringType)}
@@ -17,7 +25,7 @@ func TestNameTypeSliceToString(t *testing.T) {
 func TestFuncString(t *testing.T) {
 	f := NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
 	f.Returns(Ret(PointerTo(DefStruct(PkgBuiltin(), "Person"))))
-	f.Body = func() (string, error) { return "\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}", nil }
+	f.Body = writeToString("\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}")
 
 	expected := "func Foo(name string, age int) *Person {\n\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}\n}\n\n"
 	got := f.String()
@@ -27,7 +35,7 @@ func TestFuncString(t *testing.T) {
 func TestFuncStringVariadic(t *testing.T) {
 	f := NewFunc("Foo", Arg("name", StringType), Arg("code", IntType))
 	f.Returns(Ret(PointerTo(DefStruct(PkgBuiltin(), "Person"))))
-	f.Body = func() (string, error) { return "\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}", nil }
+	f.Body = writeToString("\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}")
 	f.Variadic = true
 
 	expected := "func Foo(name string, code ...int) *Person {\n\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}\n}\n\n"
@@ -46,7 +54,7 @@ func TestWriteFunc(t *testing.T) {
 
 	fn := f.NewFunc("Foo", Arg("name", StringType), Arg("code", IntType))
 	fn.Returns(Ret(PointerTo(DefStruct(MustPackageRef("test"), "Person"))))
-	fn.Body = func() (string, error) { return "\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}", nil }
+	fn.Body = writeToString("\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}")
 	fn.Variadic = true
 
 	f.Prepare()

@@ -33,15 +33,8 @@ func (f *File) AddGenerators(generators ...gothic.Generator) {
 	f.generators.AddGenerators(generators...)
 }
 
-type spacer struct{}
-
-func (spacer) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(nl)
-	return int64(n), err
-}
-
-func (f *File) AddWriteTo(writeTo io.WriterTo) {
-	f.code = append(f.code, writeTo, spacer{})
+func (f *File) AddWriterTo(writerTo io.WriterTo) {
+	f.code = append(f.code, writerTo)
 }
 
 // Generate the file
@@ -60,10 +53,10 @@ func (f *File) Generate() error {
 	buf.WriteRune('\n')
 	buf.WriteString("package ")
 	buf.WriteString(f.pkg.name)
-	buf.WriteRune('\n')
+	buf.WriteString("\n\n")
 	f.Imports.WriteTo(buf)
 
-	gothicio.MultiWrite(buf, f.code...)
+	gothicio.MultiWrite(buf, f.code, "\n")
 
 	code := buf.Bytes()
 	fmtCode, fmtErr := format.Source(code)
