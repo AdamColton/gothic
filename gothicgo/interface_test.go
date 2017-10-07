@@ -1,6 +1,7 @@
 package gothicgo
 
 import (
+	"bytes"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -12,7 +13,9 @@ func TestInterface(t *testing.T) {
 	i, err := file.NewInterface("Stringer")
 	assert.NoError(t, err)
 	i.AddMethod("String", nil, []Type{StringType}, false)
-	s := i.str()
+	var buf bytes.Buffer
+	i.WriteTo(&buf)
+	s := buf.String()
 	assert.Contains(t, s, "type Stringer interface{")
 	assert.Contains(t, s, "String() string")
 

@@ -2,6 +2,7 @@ package gothicgo
 
 import (
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 )
@@ -169,4 +170,27 @@ func (i *Imports) String() string {
 	l[j] = ")"
 	sort.Strings(l[1 : ln+1])
 	return strings.Join(l, "\n")
+}
+
+// String returns the imports as Go code.
+func (i *Imports) WriteTo(w io.Writer) (int64, error) {
+	ln := len(i.refs)
+	if ln == 0 {
+		return 0, nil
+	}
+	sum := SumWriter{W: w}
+	sum.WriteString("import (")
+
+	for path, alias := range i.refs {
+		sum.WriteString("\t")
+		if alias != "" {
+			sum.WriteString(alias)
+			sum.WriteString(" ")
+		}
+		sum.WriteString("\"")
+		sum.WriteString(path.String())
+		sum.WriteString("\"\n")
+	}
+	sum.WriteString(")\n\n")
+	return sum.Sum, sum.Err
 }

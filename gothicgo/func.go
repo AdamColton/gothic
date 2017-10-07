@@ -1,8 +1,8 @@
 package gothicgo
 
 import (
-	"bytes"
 	"github.com/adamcolton/gothic/bufpool"
+	"io"
 	"strings"
 )
 
@@ -72,23 +72,24 @@ func nameTypeSliceToString(pre Prefixer, nts []*NameType, variadic bool) string 
 // is best used for testing or else it can be called out of order in the
 // Prepare/Generate cycle.
 func (f *Func) String() string {
-	str, _ := f.str()
-	return str
+	buf := bufpool.Get()
+	f.WriteTo(buf)
+	return bufpool.PutStr(buf)
 }
 
-func (f *Func) str() (string, error) {
+func (f *Func) WriteTo(w io.Writer) (int64, error) {
+	s := &SumWriter{W: w}
 	body, err := f.Body()
 	if err != nil {
-		return "", err
+		return 0, err
 	}
-	buf := bufpool.Get()
-	buf.WriteString("func ")
-	buf.WriteString(f.name)
-	writeArgsRets(buf, f.Imports, f.Args, f.Rets, f.Variadic)
-	buf.WriteString(" {\n")
-	buf.WriteString(body)
-	buf.WriteString("\n}\n\n")
-	return bufpool.PutStr(buf), nil
+	s.WriteString("func ")
+	s.WriteString(f.name)
+	writeArgsRets(s, f.Imports, f.Args, f.Rets, f.Variadic)
+	s.WriteString(" {\n")
+	s.WriteString(body)
+	s.WriteString("\n}\n\n")
+	return s.Sum, s.Err
 }
 
 // Prepare adds all the types used in the Args and Rets to the file import.
@@ -106,11 +107,7 @@ func (f *Func) Prepare() error {
 
 // Generate writes the function to the file
 func (f *Func) Generate() error {
-	str, err := f.str()
-	if err != nil {
-		return err
-	}
-	f.File.AddCode(str)
+	f.File.AddWriteTo(f)
 	return nil
 }
 
@@ -223,17 +220,17 @@ func (f *funcCall) Call(pre Prefixer, args ...string) string {
 	return str
 }
 
-func writeArgsRets(buf *bytes.Buffer, pre Prefixer, args, rets []*NameType, variadic bool) {
-	buf.WriteRune('(')
-	buf.WriteString(nameTypeSliceToString(pre, args, variadic))
+func writeArgsRets(s *SumWriter, pre Prefixer, args, rets []*NameType, variadic bool) {
+	s.WriteRune('(')
+	s.WriteString(nameTypeSliceToString(pre, args, variadic))
 	if l := len(rets); l > 1 || (l == 1 && rets[0].N != "") {
-		buf.WriteString(") (")
-		buf.WriteString(nameTypeSliceToString(pre, rets, false))
-		buf.WriteRune(')')
+		s.WriteString(") (")
+		s.WriteString(nameTypeSliceToString(pre, rets, false))
+		s.WriteRune(')')
 	} else {
-		buf.WriteString(") ")
+		s.WriteString(") ")
 		if l == 1 {
-			buf.WriteString(nameTypeSliceToString(pre, rets, false))
+			s.WriteString(nameTypeSliceToString(pre, rets, false))
 		}
 	}
 }

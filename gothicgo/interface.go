@@ -2,6 +2,7 @@ package gothicgo
 
 import (
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -48,17 +49,22 @@ func (i *Interface) Prepare() error { return nil }
 
 // Generate adds the interface to the file and fulfills the generator interface
 func (i *Interface) Generate() error {
-	i.file.AddCode(i.str())
+	i.file.AddWriteTo(i)
 	return nil
 }
 
-func (i *Interface) str() string {
-	out := "type " + i.name + " interface{\n"
+func (i *Interface) WriteTo(w io.Writer) (int64, error) {
+	s := SumWriter{W: w}
+	s.WriteString("type ")
+	s.WriteString(i.Name())
+	s.WriteString(" interface{\n")
 	for _, im := range i.methods {
-		out += "\t" + im.str(i.file.Imports) + "\n"
+		s.WriteString("\t")
+		s.WriteString(im.str(i.file.Imports))
+		s.WriteString("\n")
 	}
-	out += "}\n\n"
-	return out
+	s.WriteString("}\n\n")
+	return s.Sum, s.Err
 }
 
 func typeSliceToString(ts []Type, imp *Imports, variadic bool) string {

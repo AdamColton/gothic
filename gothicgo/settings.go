@@ -2,6 +2,7 @@ package gothicgo
 
 import (
 	"github.com/adamcolton/gothic"
+	"io"
 	"regexp"
 	"strings"
 )
@@ -46,45 +47,69 @@ func init() {
 	gothic.AddGenerators(packages)
 }
 
-// BuildComment creates a comment wrapped to a specific width.
-func BuildComment(comment string, width int) string {
-	targetWidth := width - 3
-	lines := []string{}
-	buf, line := " ", ""
-	for _, c := range comment {
-		switch c {
-		case ' ':
-			fallthrough
-		case '\t':
-			fallthrough
-		case '\n':
-			lb, ll := len(buf), len(line)
-			if lb > targetWidth {
-				if ll > 0 {
-					lines = append(lines, line)
-				}
-				lines = append(lines, buf)
-				buf, line = " ", ""
-			} else if lb+ll > targetWidth {
-				lines = append(lines, line)
-				buf, line = " ", buf
-			} else {
-				line += buf
-				buf = " "
-			}
-		default:
-			buf += string(c)
-		}
+type Comment struct {
+	Comment string
+	Width   int
+}
+
+func NewComment(comment string) Comment {
+	return Comment{
+		Comment: comment,
+		Width:   CommentWidth,
 	}
-	lb, ll := len(buf), len(line)
-	if lb > targetWidth || lb+ll > targetWidth {
-		if len(line) > 0 {
-			lines = append(lines, line)
+}
+
+const wsRunes = "\t "
+
+type SumWriter struct {
+	W   io.Writer
+	Sum int64
+	Err error
+}
+
+func (s *SumWriter) WriteString(str string) { s.Write([]byte(str)) }
+func (s *SumWriter) WriteRune(r rune)       { s.Write([]byte(string(r))) }
+
+func (s *SumWriter) Write(b []byte) {
+	if s.Err != nil {
+		return
+	}
+	var n int
+	n, s.Err = s.W.Write(b)
+	s.Sum += int64(n)
+}
+
+var commentStart = []byte("// ")
+var nl = []byte("\n")
+
+func (c Comment) WriteTo(w io.Writer) (int64, error) {
+	sum := SumWriter{W: w}
+	targetWidth := c.Width - 3
+	until := len(c.Comment) - targetWidth
+
+	cur := 0
+	for cur < until && sum.Err == nil {
+		s := c.Comment[cur : cur+targetWidth]
+		end := strings.IndexRune(s, '\n')
+		if end == -1 {
+			end = strings.LastIndexAny(s, " \t")
+			if end == -1 {
+				s = c.Comment[cur:]
+				end = strings.IndexAny(s, " \t\n")
+				if end == -1 {
+					break
+				}
+			}
 		}
-		lines = append(lines, buf)
-	} else {
-		lines = append(lines, line+buf)
+		sum.Write(commentStart)
+		sum.Write([]byte(s[:end]))
+		sum.Write(nl)
+		cur += end + 1
 	}
 
-	return "//" + strings.Join(lines, "\n//") + "\n\n"
+	sum.Write(commentStart)
+	sum.Write([]byte(c.Comment[cur:]))
+	sum.Write(nl)
+
+	return sum.Sum, sum.Err
 }

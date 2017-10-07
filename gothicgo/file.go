@@ -3,6 +3,7 @@ package gothicgo
 import (
 	"fmt"
 	"github.com/adamcolton/gothic"
+	"github.com/adamcolton/gothic/bufpool"
 	"go/format"
 	"io"
 	"os"
@@ -11,6 +12,11 @@ import (
 	"strings"
 )
 
+type TempCodeUnit struct {
+	W io.WriterTo
+	S string
+}
+
 // File represents a Go file. Writer is intended as a hook for testing. If it is
 // nil, the code will be written to the file normally, if it's set to an
 // io.WriteCloser, it will write to that instead
@@ -18,7 +24,7 @@ type File struct {
 	*Imports
 	generators *gothic.Project
 	name       string
-	code       []string
+	code       []TempCodeUnit
 	pkg        *Package
 	Writer     io.WriteCloser
 	Comment    string
@@ -33,7 +39,19 @@ func (f *File) AddGenerators(generators ...gothic.Generator) {
 }
 
 // AddCode will add raw strings to the file
-func (f *File) AddCode(code ...string) { f.code = append(f.code, code...) }
+func (f *File) AddCode(code ...string) {
+	tcu := TempCodeUnit{
+		S: strings.Join(code, "\n"),
+	}
+	f.code = append(f.code, tcu)
+}
+
+func (f *File) AddWriteTo(writeTo io.WriterTo) {
+	tcu := TempCodeUnit{
+		W: writeTo,
+	}
+	f.code = append(f.code, tcu)
+}
 
 // Generate the file
 func (f *File) Generate() error {
@@ -45,13 +63,25 @@ func (f *File) Generate() error {
 		return err
 	}
 
-	s := append([]string{
-		BuildComment(f.Comment, CommentWidth),
-		"package " + f.pkg.name + "\n",
-		f.Imports.String(),
-	}, f.code...)
+	buf := bufpool.Get()
 
-	code := []byte(strings.Join(s, "\n"))
+	NewComment(f.Comment).WriteTo(buf)
+	buf.WriteRune('\n')
+	buf.WriteString("package ")
+	buf.WriteString(f.pkg.name)
+	buf.WriteRune('\n')
+	f.Imports.WriteTo(buf)
+
+	for _, c := range f.code {
+		if c.W != nil {
+			c.W.WriteTo(buf)
+		} else {
+			buf.WriteString(c.S)
+		}
+		buf.WriteRune('\n')
+	}
+
+	code := buf.Bytes()
 	fmtCode, fmtErr := format.Source(code)
 
 	wc := f.Writer
