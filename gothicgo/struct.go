@@ -2,7 +2,10 @@ package gothicgo
 
 import (
 	"fmt"
+	"github.com/adamcolton/gothic/bufpool"
+	"github.com/adamcolton/gothic/gothicio"
 	"go/format"
+	"io"
 	"sort"
 	"strings"
 )
@@ -133,6 +136,18 @@ func (s *Struct) str() string {
 	return strings.Join(l, "\n")
 }
 
+func (s *Struct) WriteTo(w io.Writer) (int64, error) {
+	sum := gothicio.NewSumWriter(w)
+	sum.WriteString("type ")
+	sum.WriteString(s.name)
+	sum.WriteString(" struct {\n")
+	for _, f := range s.fieldOrder {
+		sum.Wrap(s.fields[f])
+	}
+	sum.WriteString("}")
+	return sum.Sum, sum.Err
+}
+
 // String returns the struct as Go code
 func (s *Struct) String() string {
 	b, _ := format.Source([]byte(s.str()))
@@ -149,7 +164,7 @@ func (s *Struct) Prepare() error {
 
 // Generate adds the Struct to the file
 func (s *Struct) Generate() error {
-	s.file.AddCode(s.str())
+	s.file.AddWriteTo(s)
 	return nil
 }
 
@@ -225,6 +240,40 @@ func (f *Field) String() string {
 	return f.Name() + " " + typeString + tags
 }
 
+func (f *Field) WriteTo(w io.Writer) (int64, error) {
+	sum := gothicio.NewSumWriter(w)
+
+	if name := f.Name(); name != "" {
+		sum.WriteString(name)
+		sum.WriteString(" ")
+	}
+	sum.WriteString(f.Type().RelStr(f.stct))
+
+	if len(f.Tags) > 0 {
+		sum.WriteString(" `")
+		tags := make([]string, 0, len(f.Tags))
+		for k, _ := range f.Tags {
+			tags = append(tags, k)
+		}
+		sort.Strings(tags)
+		for i, tag := range tags {
+			if i > 0 {
+				sum.WriteString(" ")
+			}
+			sum.WriteString(tag)
+			if v := f.Tags[tag]; v != "" {
+				sum.WriteString(":\"")
+				sum.WriteString(v)
+				sum.WriteString("\"")
+			}
+		}
+		sum.WriteString("`")
+	}
+	sum.WriteString("\n")
+
+	return sum.Sum, sum.Err
+}
+
 // StructType is just a wrapper around Type
 type StructType interface {
 	Type
@@ -284,47 +333,47 @@ func (m *Method) SetName(name string) {
 
 // String outputs the entire function as a string
 func (m *Method) String() string {
-	str, _ := m.str()
-	return str
+	buf := bufpool.Get()
+	m.WriteTo(buf)
+	return bufpool.PutStr(buf)
 }
 
-func (m *Method) str() (string, error) {
+func (m *Method) WriteTo(w io.Writer) (int64, error) {
+	sum := gothicio.NewSumWriter(w)
 	body, err := m.Func.Body()
 	if err != nil {
-		return "", err
+		return 0, err
 	}
-	s := make([]string, 13)
-	s[0] = "func ("
-	s[1] = m.ReceiverName
+
+	sum.WriteString("func (")
+	sum.WriteString(m.ReceiverName)
 	if m.Ptr {
-		s[2] = " *"
+		sum.WriteString(" *")
 	} else {
-		s[2] = " "
+		sum.WriteString(" ")
 	}
-	s[3] = m.strct.Name()
-	s[4] = ") "
-	s[5] = m.Func.Name()
-	s[6] = "("
-	s[7] = nameTypeSliceToString(m.strct, m.Func.Args, m.Func.Variadic)
+	sum.WriteString(m.strct.Name())
+	sum.WriteString(") ")
+	sum.WriteString(m.Func.Name())
+	sum.WriteString("(")
+	sum.WriteString(nameTypeSliceToString(m.strct, m.Func.Args, m.Func.Variadic))
+	var end string
 	if l := len(m.Func.Rets); l > 1 || (l == 1 && m.Func.Rets[0].N != "") {
-		s[8] = ") ("
-		s[10] = ") {\n"
+		sum.WriteString(") (")
+		end = ") {\n"
 	} else {
-		s[8] = ") "
-		s[10] = " {\n"
+		sum.WriteString(") ")
+		end = " {\n"
 	}
-	s[9] = nameTypeSliceToString(m.strct, m.Func.Rets, false)
-	s[11] = body
-	s[12] = "\n}\n\n"
-	return strings.Join(s, ""), nil
+	sum.WriteString(nameTypeSliceToString(m.strct, m.Func.Rets, false))
+	sum.WriteString(end)
+	sum.WriteString(body)
+	sum.WriteString("\n}\n\n")
+	return sum.Sum, sum.Err
 }
 
 // Generate writes the method to the file
 func (m *Method) Generate() error {
-	str, err := m.str()
-	if err != nil {
-		return err
-	}
-	m.strct.file.AddCode(str)
+	m.strct.file.AddWriteTo(m)
 	return nil
 }

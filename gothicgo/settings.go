@@ -2,6 +2,7 @@ package gothicgo
 
 import (
 	"github.com/adamcolton/gothic"
+	"github.com/adamcolton/gothic/gothicio"
 	"io"
 	"regexp"
 	"strings"
@@ -61,29 +62,11 @@ func NewComment(comment string) Comment {
 
 const wsRunes = "\t "
 
-type SumWriter struct {
-	W   io.Writer
-	Sum int64
-	Err error
-}
-
-func (s *SumWriter) WriteString(str string) { s.Write([]byte(str)) }
-func (s *SumWriter) WriteRune(r rune)       { s.Write([]byte(string(r))) }
-
-func (s *SumWriter) Write(b []byte) {
-	if s.Err != nil {
-		return
-	}
-	var n int
-	n, s.Err = s.W.Write(b)
-	s.Sum += int64(n)
-}
-
 var commentStart = []byte("// ")
 var nl = []byte("\n")
 
 func (c Comment) WriteTo(w io.Writer) (int64, error) {
-	sum := SumWriter{W: w}
+	sum := gothicio.NewSumWriter(w)
 	targetWidth := c.Width - 3
 	until := len(c.Comment) - targetWidth
 

@@ -6,7 +6,8 @@ import (
 
 // Templates for generating SQL methods and functions.
 var Templates = template.Must(template.New("templates").Parse(`
-{{define "insert"}}	res, err := {{.Conn}}.Exec("INSERT INTO {{.TableNameQ}} ({{.FieldsQ}}) VALUES ({{.QM}})", {{.Args}})
+{{define "insert" -}}
+	{{"\t"}}res, err := {{.Conn}}.Exec("INSERT INTO {{.TableNameQ}} ({{.FieldsQ}}) VALUES ({{.QM}})", {{.Args}})
 	if err != nil {
 		return err
 	}
@@ -15,25 +16,37 @@ var Templates = template.Must(template.New("templates").Parse(`
 		return err
 	}
 	{{.Receiver}}.{{.Primary}} = {{.PrimaryType}}(id)
-	return nil{{end}}
-{{define "update"}}	_, err := {{.Conn}}.Exec("UPDATE {{.TableNameQ}} SET ({{.Set}}) WHERE {{.PrimaryQ}}=?", {{.Args}}, {{.PrimaryArg}})
-	return err{{end}}
-{{define "createTable"}}func init() {
+	return nil
+{{- end}}
+{{define "update" -}}
+	{{"\t"}}_, err := {{.Conn}}.Exec("UPDATE {{.TableNameQ}} SET ({{.Set}}) WHERE {{.PrimaryQ}}=?", {{.Args}}, {{.PrimaryArg}})
+	return err
+{{- end}}
+{{define "createTable" -}}
+func init() {
 	gsql.AddMigration("{{.Migration}}",
 	{{.BackTick}}CREATE TABLE IF NOT EXISTS "{{.Name}}" (
 			{{.DefineTable}}
 		);{{.BackTick}},
 	"DROP TABLE {{.TableNameQ}};")
-}{{end}}
-{{define "scan"}}	{{.Receiver}} := &{{.Name}}{}{{range .FieldConverters}}
-	var {{.Name}} {{.GoType}}{{end}}
+}
+{{- end}}
+{{define "scan" -}}
+	{{"\t"}}{{.Receiver}} := &{{.Name}}{}
+	{{- range .FieldConverters}}
+	var {{.Name}} {{.GoType}}
+	{{- end}}
 	err := rows.Scan({{.ScanFields}})
 	if err != nil {
 		return nil, err
-	}{{range .FieldConverters}}
-	{{.Receiver}}.{{.Name}} = {{.FromDB}}{{end}}
-	return {{.Receiver}}, nil{{end}}
-{{define "select"}}	rows, err := {{.Conn}}.Query("SELECT {{.FieldsQ}} FROM {{.TableNameQ}} "+where, args...)
+	}
+	{{- range .FieldConverters}}
+	{{.Receiver}}.{{.Name}} = {{.FromDB}}
+	{{- end}}
+	return {{.Receiver}}, nil
+{{- end}}
+{{define "select" -}}
+	{{"\t"}}rows, err := {{.Conn}}.Query("SELECT {{.FieldsQ}} FROM {{.TableNameQ}} "+where, args...)
 	defer rows.Close()
 	if err != nil {
 		return nil, err
@@ -47,8 +60,10 @@ var Templates = template.Must(template.New("templates").Parse(`
 		{{.Receiver}}s = append({{.Receiver}}s, {{.Receiver}})
 	}
 	return {{.Receiver}}s, nil{{end}}
-{{define "upsert"}}	if {{.Receiver}}.{{.Primary}} != {{.PrimaryZeroVal}} {
+{{define "upsert" -}}
+	{{"\t"}}if {{.Receiver}}.{{.Primary}} != {{.PrimaryZeroVal}} {
 	{{template "update" .}}
 	}
-{{template "insert" .}}{{end}}
+{{template "insert" .}}
+{{- end}}
 `))

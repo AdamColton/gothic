@@ -4,18 +4,13 @@ import (
 	"fmt"
 	"github.com/adamcolton/gothic"
 	"github.com/adamcolton/gothic/bufpool"
+	"github.com/adamcolton/gothic/gothicio"
 	"go/format"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 )
-
-type TempCodeUnit struct {
-	W io.WriterTo
-	S string
-}
 
 // File represents a Go file. Writer is intended as a hook for testing. If it is
 // nil, the code will be written to the file normally, if it's set to an
@@ -24,7 +19,7 @@ type File struct {
 	*Imports
 	generators *gothic.Project
 	name       string
-	code       []TempCodeUnit
+	code       []io.WriterTo
 	pkg        *Package
 	Writer     io.WriteCloser
 	Comment    string
@@ -38,19 +33,15 @@ func (f *File) AddGenerators(generators ...gothic.Generator) {
 	f.generators.AddGenerators(generators...)
 }
 
-// AddCode will add raw strings to the file
-func (f *File) AddCode(code ...string) {
-	tcu := TempCodeUnit{
-		S: strings.Join(code, "\n"),
-	}
-	f.code = append(f.code, tcu)
+type spacer struct{}
+
+func (spacer) WriteTo(w io.Writer) (int64, error) {
+	n, err := w.Write(nl)
+	return int64(n), err
 }
 
 func (f *File) AddWriteTo(writeTo io.WriterTo) {
-	tcu := TempCodeUnit{
-		W: writeTo,
-	}
-	f.code = append(f.code, tcu)
+	f.code = append(f.code, writeTo, spacer{})
 }
 
 // Generate the file
@@ -72,14 +63,7 @@ func (f *File) Generate() error {
 	buf.WriteRune('\n')
 	f.Imports.WriteTo(buf)
 
-	for _, c := range f.code {
-		if c.W != nil {
-			c.W.WriteTo(buf)
-		} else {
-			buf.WriteString(c.S)
-		}
-		buf.WriteRune('\n')
-	}
+	gothicio.MultiWrite(buf, f.code...)
 
 	code := buf.Bytes()
 	fmtCode, fmtErr := format.Source(code)

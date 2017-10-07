@@ -3,6 +3,7 @@ package sqlmodel
 import (
 	"github.com/adamcolton/gothic/gothicgo"
 	"github.com/adamcolton/gothic/gothicmodel/gomodel"
+	"io"
 )
 
 // DefaultConn is used when creating a new SQL instance
@@ -108,17 +109,15 @@ func getMigrationFile() *gothicgo.File {
 }
 
 // Create will add a migration to create the table
-func (s *SQL) Create(migration string, fields ...string) (string, error) {
+func (s *SQL) Create(migration string, fields ...string) io.WriterTo {
 	s.addImport()
 	file := getMigrationFile()
 
 	q := s.QueryBuilder(fields...)
 	q.Migration = migration
-	str, err := q.ExecuteTemplate("createTable")
-	if err == nil {
-		file.AddCode(str)
-	}
-	return str, err
+	wt := q.TemplateWriteTo("createTable")
+	file.AddWriteTo(wt)
+	return wt
 }
 
 // GoSQL is the sql package to use

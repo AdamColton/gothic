@@ -2,6 +2,7 @@ package gothicgo
 
 import (
 	"github.com/adamcolton/gothic/bufpool"
+	"github.com/adamcolton/gothic/gothicio"
 	"io"
 	"strings"
 )
@@ -78,7 +79,7 @@ func (f *Func) String() string {
 }
 
 func (f *Func) WriteTo(w io.Writer) (int64, error) {
-	s := &SumWriter{W: w}
+	s := gothicio.NewSumWriter(w)
 	body, err := f.Body()
 	if err != nil {
 		return 0, err
@@ -220,7 +221,7 @@ func (f *funcCall) Call(pre Prefixer, args ...string) string {
 	return str
 }
 
-func writeArgsRets(s *SumWriter, pre Prefixer, args, rets []*NameType, variadic bool) {
+func writeArgsRets(s *gothicio.SumWriter, pre Prefixer, args, rets []*NameType, variadic bool) {
 	s.WriteRune('(')
 	s.WriteString(nameTypeSliceToString(pre, args, variadic))
 	if l := len(rets); l > 1 || (l == 1 && rets[0].N != "") {

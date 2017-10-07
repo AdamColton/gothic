@@ -5,6 +5,7 @@ import (
 	"github.com/adamcolton/gothic/bufpool"
 	"github.com/adamcolton/gothic/gothicgo"
 	"github.com/adamcolton/gothic/gothicmodel/gomodel"
+	"io"
 	"strings"
 )
 
@@ -135,6 +136,30 @@ func (q *QueryBuilder) BackTick() string { return "`" }
 // ExecuteTemplate by name and pass the QueryBuilder in as the data.
 func (q *QueryBuilder) ExecuteTemplate(name string) (string, error) {
 	return bufpool.ExecuteTemplate(Templates, name, q)
+}
+
+type QueryBuilderTemplateWriteTo struct {
+	*QueryBuilder
+	Name string
+}
+
+func (qbtw *QueryBuilderTemplateWriteTo) WriteTo(w io.Writer) (int64, error) {
+	buf := bufpool.Get()
+	err := Templates.ExecuteTemplate(buf, qbtw.Name, qbtw.QueryBuilder)
+	if err != nil {
+		return 0, err
+	}
+	n, err := w.Write(buf.Bytes())
+	return int64(n), err
+}
+
+// TemplateWriteTo returns an object that fulfils WriterTo and will write the
+// template to the writer
+func (q *QueryBuilder) TemplateWriteTo(name string) io.WriterTo {
+	return &QueryBuilderTemplateWriteTo{
+		QueryBuilder: q,
+		Name:         name,
+	}
 }
 
 // GenericMethod takes a template name and wraps it in a method on the struct.

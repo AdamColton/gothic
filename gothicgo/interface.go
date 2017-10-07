@@ -2,6 +2,7 @@ package gothicgo
 
 import (
 	"fmt"
+	"github.com/adamcolton/gothic/gothicio"
 	"io"
 	"strings"
 )
@@ -54,7 +55,7 @@ func (i *Interface) Generate() error {
 }
 
 func (i *Interface) WriteTo(w io.Writer) (int64, error) {
-	s := SumWriter{W: w}
+	s := gothicio.NewSumWriter(w)
 	s.WriteString("type ")
 	s.WriteString(i.Name())
 	s.WriteString(" interface{\n")

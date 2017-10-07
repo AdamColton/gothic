@@ -1,6 +1,7 @@
 package sqlmodel
 
 import (
+	"bytes"
 	"github.com/adamcolton/gothic/gothicgo"
 	"github.com/adamcolton/gothic/gothicmodel"
 	"github.com/adamcolton/gothic/gothicmodel/gomodel"
@@ -78,7 +79,10 @@ func TestUpdate(t *testing.T) {
 func TestCreate(t *testing.T) {
 	sql := setup()
 
-	s, err := sql.Create("12345_create_user")
+	var buf bytes.Buffer
+	_, err := sql.Create("12345_create_user").WriteTo(&buf)
+	s := buf.String()
+
 	assert.NoError(t, err)
 	assert.Contains(t, s, "\"ID\" int UNSIGNED DEFAULT 0 NOT NULL,")
 	assert.Contains(t, s, "CREATE TABLE IF NOT EXISTS \"test\" (")

@@ -2,6 +2,7 @@ package gothicgo
 
 import (
 	"fmt"
+	"github.com/adamcolton/gothic/gothicio"
 	"io"
 	"sort"
 	"strings"
@@ -178,7 +179,7 @@ func (i *Imports) WriteTo(w io.Writer) (int64, error) {
 	if ln == 0 {
 		return 0, nil
 	}
-	sum := SumWriter{W: w}
+	sum := gothicio.NewSumWriter(w)
 	sum.WriteString("import (")
 
 	for path, alias := range i.refs {

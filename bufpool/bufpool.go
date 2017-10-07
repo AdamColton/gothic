@@ -21,12 +21,20 @@ func Put(buf *bytes.Buffer) {
 	pool.Put(buf)
 }
 
-// Put returns a buffer from the pool and returns it's value as a string
-func PutStr(buf *bytes.Buffer) string {
-	str := buf.String()
+// PutAndCopy returns the buffer to the pool and returns a copy of it's byte
+// slice
+func PutAndCopy(buf *bytes.Buffer) []byte {
+	bs := buf.Bytes()
+	cp := make([]byte, len(bs))
+	copy(cp, bs)
 	buf.Reset()
 	pool.Put(buf)
-	return str
+	return cp
+}
+
+// PutStr returns a buffer from the pool and returns it's value as a string
+func PutStr(buf *bytes.Buffer) string {
+	return string(PutAndCopy(buf))
 }
 
 // TemplateExecutor is an interface representing the ExecuteTemplate method on
