@@ -1,10 +1,16 @@
 package gothicgo
 
 import (
-	"github.com/adamcolton/sai"
+	"bytes"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
+
+type closerBuf struct{ *bytes.Buffer }
+
+func (c *closerBuf) Close() error {
+	return nil
+}
 
 type istruct string
 
@@ -95,7 +101,7 @@ func TestImportString(t *testing.T) {
 	s.AddField("time", DefStruct(timePkg, "Time"))
 	s.Prepare()
 
-	time, ok := s.file.Imports.refs[timePkg]
+	time, ok := s.file.Imports.refs[timePkg.String()]
 	assert.True(t, ok)
 	assert.Equal(t, "", time)
 	assert.Equal(t, "time", s.file.GetRefName(timePkg))
@@ -122,7 +128,7 @@ type test struct {
 	assert.NoError(t, err)
 	s.AddField("time", DefStruct(MustPackageRef("time"), "Time"))
 
-	wc := sai.New()
+	wc := &closerBuf{&bytes.Buffer{}}
 	f := s.file
 	f.Writer = wc
 	f.Prepare()
@@ -161,7 +167,7 @@ func (t *test) foo(name string) {
 	m.Body = writeToString("fmt.Println(\"Hi\", name)")
 	m.AddRefImports(MustPackageRef("fmt"))
 
-	wc := sai.New()
+	wc := &closerBuf{&bytes.Buffer{}}
 	f := s.file
 	f.Writer = wc
 	f.Prepare()
@@ -174,4 +180,22 @@ func TestDefStruct(t *testing.T) {
 	s := DefStruct(MustPackageRef("foo"), "Bar")
 	assert.Equal(t, "foo", s.PackageRef().String())
 	assert.Equal(t, "Bar", s.Name())
+}
+
+func TestStructType(t *testing.T) {
+	foo := MustPackageRef("foo")
+	SetImportPath("")
+	p, err := NewPackage("test")
+	assert.NoError(t, err)
+	p.OutputPath = "test"
+	s, err := p.NewStruct("test")
+	assert.NoError(t, err)
+	s.AddField("foo", PointerTo(DefStruct(foo, "Foo")))
+	s.AddField("bar", PointerTo(DefStruct(foo, "Bar")))
+	s.Embed(PointerTo(DefStruct(foo, "Glorp")))
+
+	var tp Type = s.Type()
+	assert.NotNil(t, tp)
+	var stp = s.Type()
+	assert.NotNil(t, stp)
 }

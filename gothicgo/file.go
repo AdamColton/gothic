@@ -1,7 +1,6 @@
 package gothicgo
 
 import (
-	"fmt"
 	"github.com/adamcolton/gothic"
 	"github.com/adamcolton/gothic/bufpool"
 	"github.com/adamcolton/gothic/gothicio"
@@ -26,13 +25,18 @@ type File struct {
 }
 
 // Prepare runs prepare on all the generators in the file
-func (f *File) Prepare() error { return f.generators.Prepare() }
+func (f *File) Prepare() error {
+	err := f.generators.Prepare()
+	return errCtx(err, "Prepare file %s:", f.name)
+}
 
 // AddGenerators to the file
 func (f *File) AddGenerators(generators ...gothic.Generator) {
 	f.generators.AddGenerators(generators...)
 }
 
+// AddWriterTo adds a WriterTo that will be invoked when the file is written,
+// but after Prepare and Generate have run.
 func (f *File) AddWriterTo(writerTo io.WriterTo) {
 	f.code = append(f.code, writerTo)
 }
@@ -44,19 +48,22 @@ func (f *File) Generate() error {
 
 	err := f.generators.Generate()
 	if err != nil {
-		return err
+		return errCtx(err, "Generate file %s/%s:", f.pkg.name, f.name)
 	}
 
 	buf := bufpool.Get()
+	sw := gothicio.NewSumWriter(buf)
 
-	NewComment(f.Comment).WriteTo(buf)
-	buf.WriteRune('\n')
-	buf.WriteString("package ")
-	buf.WriteString(f.pkg.name)
-	buf.WriteString("\n\n")
-	f.Imports.WriteTo(buf)
-
-	gothicio.MultiWrite(buf, f.code, "\n")
+	NewComment(f.Comment).WriteTo(sw)
+	sw.WriteRune('\n')
+	sw.WriteString("package ")
+	sw.WriteString(f.pkg.name)
+	sw.WriteString("\n\n")
+	f.Imports.WriteTo(sw)
+	gothicio.MultiWrite(sw, f.code, "\n")
+	if sw.Err != nil {
+		errCtx(sw.Err, "Generate file %s/%s:", f.pkg.name, f.name)
+	}
 
 	code := buf.Bytes()
 	fmtCode, fmtErr := format.Source(code)
@@ -65,7 +72,7 @@ func (f *File) Generate() error {
 	if wc == nil {
 		wc, err = f.open()
 		if err != nil {
-			return err
+			return errCtx(err, "Generate file %s/%s:", f.pkg.name, f.name)
 		}
 	}
 
@@ -74,12 +81,12 @@ func (f *File) Generate() error {
 	} else {
 		_, err = wc.Write(code)
 		if err == nil {
-			err = fmt.Errorf("Failed to format", f.pkg.name+"/"+f.name+".go ", fmtErr)
+			err = errCtx(fmtErr, "Failed to format %s/%s:", f.pkg.name, f.name)
 		}
 	}
 	if err != nil {
 		wc.Close()
-		return err
+		return errCtx(err, "Generate file %s/%s:", f.pkg.name, f.name)
 	}
 	return wc.Close()
 }
@@ -112,3 +119,6 @@ func (f *File) open() (io.WriteCloser, error) {
 
 // Package the file is in
 func (f *File) Package() *Package { return f.pkg }
+
+// Name returns the name of the file.
+func (f *File) Name() string { return f.name }

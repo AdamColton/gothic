@@ -33,7 +33,7 @@ func (defaultPrefixer) Prefix(ref PackageRef) string {
 // called to resolve any packages to refs.
 type Imports struct {
 	self  PackageRef
-	refs  map[PackageRef]string
+	refs  map[string]string
 	names map[string]string
 }
 
@@ -41,7 +41,7 @@ type Imports struct {
 func NewImports(self PackageRef) *Imports {
 	return &Imports{
 		self:  self,
-		refs:  make(map[PackageRef]string),
+		refs:  make(map[string]string),
 		names: make(map[string]string),
 	}
 }
@@ -59,9 +59,12 @@ func (i *Imports) Prefix(ref PackageRef) string {
 // AddRefImports takes PackageRefs and adds them as imports without aliases.
 func (i *Imports) AddRefImports(refs ...PackageRef) {
 	for _, ref := range refs {
-		if ref != nil && ref.String() != "" && (i.self == nil || ref.String() != i.self.String()) {
-			if _, exists := i.refs[ref]; !exists {
-				i.refs[ref] = ""
+		if ref != nil {
+			rs := ref.String()
+			if rs != "" && (i.self == nil || rs != i.self.String()) {
+				if _, exists := i.refs[rs]; !exists {
+					i.refs[rs] = ""
+				}
 			}
 		}
 	}
@@ -80,8 +83,11 @@ func (i *Imports) AddNameImports(names ...string) {
 
 // AddRefAliasImport adds a PackageRef as an alias
 func (i *Imports) AddRefAliasImport(ref PackageRef, alias string) {
-	if ref != nil && ref.String() != "" && ref.String() != i.self.String() {
-		i.refs[ref] = alias
+	if ref != nil {
+		rs := ref.String()
+		if rs != "" && rs != i.self.String() {
+			i.refs[rs] = alias
+		}
 	}
 }
 
@@ -108,7 +114,9 @@ func (i *Imports) AddImports(imports *Imports) {
 
 // RemoveRef removes a reference.
 func (i *Imports) RemoveRef(ref PackageRef) {
-	delete(i.refs, ref)
+	if ref != nil {
+		delete(i.refs, ref.String())
+	}
 }
 
 // ResolvePackages uses a resolver to find all the packages that were imported
@@ -116,8 +124,9 @@ func (i *Imports) RemoveRef(ref PackageRef) {
 func (i *Imports) ResolvePackages(resolver ImportResolver) {
 	// TODO: handle alias collision
 	for pkg, alias := range i.names {
-		if path := resolver.Resolve(pkg); path.String() != "" {
-			i.refs[path] = alias
+		path := resolver.Resolve(pkg)
+		if ps := path.String(); ps != "" {
+			i.refs[ps] = alias
 		}
 	}
 }
@@ -130,7 +139,7 @@ func (i *Imports) GetRefName(ref PackageRef) string {
 	if i == nil {
 		return ref.Name()
 	}
-	name, ok := i.refs[ref]
+	name, ok := i.refs[ref.String()]
 	if ok {
 		if name != "" {
 			return name
@@ -143,7 +152,7 @@ func (i *Imports) GetRefName(ref PackageRef) string {
 		return rn
 	}
 	delete(i.names, rn)
-	i.refs[ref] = name
+	i.refs[ref.String()] = name
 	if name == "" {
 		return rn
 	}
@@ -157,7 +166,7 @@ func (i *Imports) String() string {
 	return bufpool.PutStr(buf)
 }
 
-// String returns the imports as Go code.
+// WriteTo writes the Go code to a writer
 func (i *Imports) WriteTo(w io.Writer) (int64, error) {
 	ln := len(i.refs)
 	if ln == 0 {
@@ -166,13 +175,11 @@ func (i *Imports) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
 	sum.WriteString("import (")
 
-	refs := make([]PackageRef, 0, len(i.refs))
+	refs := make([]string, 0, len(i.refs))
 	for path := range i.refs {
 		refs = append(refs, path)
 	}
-	sort.Slice(refs, func(i, j int) bool {
-		return refs[i].String() < refs[j].String()
-	})
+	sort.Strings(refs)
 
 	for _, path := range refs {
 		sum.WriteString("\n\t")
@@ -181,9 +188,12 @@ func (i *Imports) WriteTo(w io.Writer) (int64, error) {
 			sum.WriteString(" ")
 		}
 		sum.WriteString("\"")
-		sum.WriteString(path.String())
+		sum.WriteString(path)
 		sum.WriteString("\"")
 	}
 	sum.WriteString("\n)\n")
+	if sum.Err != nil {
+		sum.Err = errCtx(sum.Err, "While writing imports:")
+	}
 	return sum.Sum, sum.Err
 }

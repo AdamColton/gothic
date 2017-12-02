@@ -21,10 +21,22 @@ func Arg(name string, typ Type) *NameType {
 }
 
 // Ret is a short way to make an unnamed NameType as a Return for a Func
-func Ret(typ Type) *NameType {
+func Ret(t Type) *NameType {
 	return &NameType{
-		T: typ,
+		T: t,
 	}
+}
+
+// Rets takes a slice of types and returns them as a slice of NameTypes that are
+// unnamed.
+func Rets(ts ...Type) []*NameType {
+	nts := make([]*NameType, len(ts))
+	for i, t := range ts {
+		nts[i] = &NameType{
+			T: t,
+		}
+	}
+	return nts
 }
 
 // NmRet is a short way to make a named NameType as a return for a Func

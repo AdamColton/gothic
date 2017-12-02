@@ -51,3 +51,29 @@ func TestAddPrimary(t *testing.T) {
 		assert.Equal(t, "neverPrimary", fs[2].Name())
 	}
 }
+
+func TestMeta(t *testing.T) {
+	m, err := New("testModel", Fields{
+		{"id", "[]byte"},
+		{"Name", "string"},
+		{"Age", "int"},
+	})
+	assert.NoError(t, err)
+
+	f, ok := m.Field("Name")
+	assert.True(t, ok)
+	f.AddMeta("unlivery", "droitsman")
+	v, ok := f.Meta("unlivery")
+	assert.Equal(t, "droitsman", v)
+	assert.True(t, ok)
+
+	f2, _ := m.Field("Name")
+	v, ok = f2.Meta("unlivery")
+	assert.Equal(t, "droitsman", v)
+	assert.True(t, ok)
+
+	m.AddMeta("octospore", "pseudococtate")
+	v, ok = m.Meta("octospore")
+	assert.Equal(t, "pseudococtate", v)
+	assert.True(t, ok)
+}

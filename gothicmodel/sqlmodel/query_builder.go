@@ -2,8 +2,8 @@ package sqlmodel
 
 import (
 	"fmt"
-	"github.com/adamcolton/gothic/bufpool"
 	"github.com/adamcolton/gothic/gothicgo"
+	"github.com/adamcolton/gothic/gothicio"
 	"github.com/adamcolton/gothic/gothicmodel/gomodel"
 	"io"
 	"strings"
@@ -60,7 +60,7 @@ func (s *SQL) queryBuilder(fields []string, allFields bool) *QueryBuilder {
 
 func (s *SQL) arg(field gomodel.Field) string {
 	arg := s.Receiver() + "." + field.Name()
-	if c, ok := Converters[field.Type()]; ok {
+	if c, ok := converters[field.Type()]; ok {
 		arg = c.toDB.Call(s.File(), arg)
 	}
 	return arg
@@ -111,13 +111,24 @@ func (q *QueryBuilder) PrimaryArg() string {
 	return q.primaryArg
 }
 
-// Set returns each field followed by "=?" for a call to set.
+// Set returns each field followed by "=?" separated by commas for a call to
+// set.
 func (q *QueryBuilder) Set() string {
 	set := make([]string, len(q.fields))
 	for i, field := range q.fields {
 		set[i] = q.IDQuote + field + q.IDQuote + "=?"
 	}
 	return strings.Join(set, ", ")
+}
+
+// AndConditions returns each field followed by "=?" separated by AND for use as
+// a condition.
+func (q *QueryBuilder) AndConditions() string {
+	set := make([]string, len(q.fields))
+	for i, field := range q.fields {
+		set[i] = q.IDQuote + field + q.IDQuote + "=?"
+	}
+	return strings.Join(set, " AND ")
 }
 
 // PrimaryZeroVal gets the zero value of the primary field
@@ -133,41 +144,18 @@ func (q *QueryBuilder) Conn() string {
 // BackTick allows a backtick to be injected into a template
 func (q *QueryBuilder) BackTick() string { return "`" }
 
-// ExecuteTemplate by name and pass the QueryBuilder in as the data.
-func (q *QueryBuilder) ExecuteTemplate(name string) (string, error) {
-	return bufpool.ExecuteTemplate(Templates, name, q)
-}
-
-type QueryBuilderTemplateWriteTo struct {
-	*QueryBuilder
-	Name string
-}
-
-func (qbtw *QueryBuilderTemplateWriteTo) WriteTo(w io.Writer) (int64, error) {
-	buf := bufpool.Get()
-	err := Templates.ExecuteTemplate(buf, qbtw.Name, qbtw.QueryBuilder)
-	if err != nil {
-		return 0, err
-	}
-	n, err := w.Write(buf.Bytes())
-	return int64(n), err
-}
-
-// TemplateWriteTo returns an object that fulfils WriterTo and will write the
+// TemplateWriterTo returns an object that fulfils WriterTo and will write the
 // template to the writer
-func (q *QueryBuilder) TemplateWriteTo(name string) io.WriterTo {
-	return &QueryBuilderTemplateWriteTo{
-		QueryBuilder: q,
-		Name:         name,
-	}
+func (q *QueryBuilder) TemplateWriterTo(name string) io.WriterTo {
+	return gothicio.NewTemplateTo(Templates, name, q)
 }
 
 // GenericMethod takes a template name and wraps it in a method on the struct.
 func (q *QueryBuilder) GenericMethod(name string) *gothicgo.Method {
 	q.addImport()
 	m := q.Struct.NewMethod(name)
-	m.Returns(gothicgo.Ret(gothicgo.ErrorType))
-	m.Body = q.TemplateWriteTo(name)
+	m.UnnamedReturns(gothicgo.ErrorType)
+	m.Body = q.TemplateWriterTo(name)
 	return m
 }
 
@@ -180,8 +168,8 @@ func (q *QueryBuilder) GenericFunction(name string, slice bool) *gothicgo.Func {
 	if slice {
 		t = gothicgo.SliceOf(t)
 	}
-	fn.Returns(gothicgo.Ret(t), gothicgo.Ret(gothicgo.ErrorType))
-	fn.Body = q.TemplateWriteTo(name)
+	fn.UnnamedReturns(t, gothicgo.ErrorType)
+	fn.Body = q.TemplateWriterTo(name)
 	return fn
 }
 
@@ -191,14 +179,18 @@ func (q *QueryBuilder) DefineTable() string {
 
 	if q.Primary() != "" {
 		rows = append(rows,
-			fmt.Sprintf("\"%s\" %s", q.Primary(), q.PrimarySQLType()),
-			fmt.Sprintf("PRIMARY KEY(\"%s\")", q.Primary()),
+			fmt.Sprintf(`"%s" %s`, q.Primary(), q.PrimarySQLType()),
+			fmt.Sprintf(`PRIMARY KEY("%s")`, q.Primary()),
 		)
 	}
 
 	for _, field := range q.fields {
 		f, _ := q.Field(field)
-		rows = append(rows, fmt.Sprintf("\"%s\" %s", field, f.SQLType))
+		rows = append(rows, fmt.Sprintf(`"%s" %s`, field, f.SQLType))
+	}
+
+	for idx := range q.Index {
+		rows = append(rows, fmt.Sprintf(`INDEX ("%s")`, idx))
 	}
 	return strings.Join(rows, ",\n\t\t\t")
 }
@@ -229,7 +221,7 @@ func (q *QueryBuilder) Field(name string) (*QueryBuilderField, bool) {
 type FieldConverter struct {
 	q *QueryBuilder
 	*QueryBuilderField
-	*Converter
+	*converter
 }
 
 // FromDB converts a value from the database and returns a value of the type
@@ -249,17 +241,26 @@ func (f *FieldConverter) Receiver() string {
 	return f.q.Receiver()
 }
 
+// GoType returns the Go type of the fromDB arg
+func (f *FieldConverter) GoType() string {
+	rets := f.fromDB.Args()
+	if len(rets) < 1 {
+		return ""
+	}
+	return rets[0].T.RelStr(f.q.File().Imports)
+}
+
 func (q *QueryBuilder) populateConverters() {
 	if q.fieldConverters == nil {
 		r := q.Receiver()
 		scanFields := make([]string, len(q.fields))
 		for i, f := range q.fields {
 			field, _ := q.Field(f)
-			if c, ok := Converters[field.Type()]; ok {
+			if c, ok := converters[field.Type()]; ok {
 				q.fieldConverters = append(q.fieldConverters, FieldConverter{
 					q:                 q,
 					QueryBuilderField: field,
-					Converter:         c,
+					converter:         c,
 				})
 				scanFields[i] = fmt.Sprintf("&(%s)", field.Name())
 			} else {
@@ -285,6 +286,10 @@ func (q *QueryBuilder) ScanFields() string {
 // Scanner returns the function that scans a SQL row into an instance of the
 // struct
 func (q *QueryBuilder) Scanner() string {
-	scanner := q.SQL.Scanner()
-	return scanner.Name()
+	return q.SQL.Scanner().Name()
+}
+
+// Select returns name of the Select method
+func (q *QueryBuilder) Select() string {
+	return q.SQL.Select().Name()
 }

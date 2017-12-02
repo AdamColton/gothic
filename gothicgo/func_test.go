@@ -23,7 +23,7 @@ func TestNameTypeSliceToString(t *testing.T) {
 }
 
 func TestFuncString(t *testing.T) {
-	f := NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
+	f := NewFunc(NewImports(PkgBuiltin()), "Foo", Arg("name", StringType), Arg("age", IntType))
 	f.Returns(Ret(PointerTo(DefStruct(PkgBuiltin(), "Person"))))
 	f.Body = writeToString("\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}")
 
@@ -33,7 +33,7 @@ func TestFuncString(t *testing.T) {
 }
 
 func TestFuncStringVariadic(t *testing.T) {
-	f := NewFunc("Foo", Arg("name", StringType), Arg("code", IntType))
+	f := NewFunc(NewImports(PkgBuiltin()), "Foo", Arg("name", StringType), Arg("code", IntType))
 	f.Returns(Ret(PointerTo(DefStruct(PkgBuiltin(), "Person"))))
 	f.Body = writeToString("\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}")
 	f.Variadic = true
@@ -65,7 +65,7 @@ func TestWriteFunc(t *testing.T) {
 }
 
 func TestFuncType(t *testing.T) {
-	f := NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
+	f := NewFunc(NewImports(PkgBuiltin()), "Foo", Arg("name", StringType), Arg("age", IntType))
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
 	f.Returns(Ret(PointerTo(DefStruct(p, "Person"))))
@@ -82,8 +82,10 @@ func TestFuncCall(t *testing.T) {
 	assert.NoError(t, err)
 	file := p.File("test")
 
-	fc := FuncCall(p, "myFn")
+	args := []*NameType{Ret(StringType), Ret(StringType)}
+	fc := FuncCall(p, "myFn", args, nil)
 	assert.Equal(t, "myFn(Maggie, Bea)", fc.Call(file, "Maggie", "Bea"))
+	assert.Equal(t, fc.Args(), args)
 
 	p, err = NewPackage("foo")
 	pre := NewImports(p)

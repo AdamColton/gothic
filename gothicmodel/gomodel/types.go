@@ -28,3 +28,9 @@ var Types = map[string]gothicgo.Type{
 	"uintptr":    gothicgo.UintptrType,
 	"datetime":   gothicgo.DefStruct(gothicgo.MustPackageRef("time"), "Time"),
 }
+
+// Tags defines the tags that will set on a field
+type Tags map[string]string
+
+// TypeTags defines the tags that will set on fields
+var TypeTags = make(map[string]Tags)

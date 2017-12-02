@@ -31,7 +31,7 @@ func TestPadTest(t *testing.T) {
 func TestFuncTypeString(t *testing.T) {
 	expected := "func() string"
 
-	f := NewFunc("")
+	f := NewFunc(NewImports(PkgBuiltin()), "")
 	f.Returns(Ret(StringType))
 	tp := f.Type()
 
@@ -42,7 +42,7 @@ func TestFuncTypeString(t *testing.T) {
 func TestMapToFuncTypeString(t *testing.T) {
 	expected := "map[string]func() string"
 
-	f := NewFunc("")
+	f := NewFunc(NewImports(PkgBuiltin()), "")
 	f.Returns(Ret(StringType))
 	tp := MapOf(StringType, f.Type())
 

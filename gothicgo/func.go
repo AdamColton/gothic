@@ -8,12 +8,17 @@ import (
 	"strings"
 )
 
+// FuncSig holds the parts of the function signature
+type FuncSig struct {
+	Name string
+	Args []*NameType
+	Rets []*NameType
+}
+
 // Func represents a Go function.
 type Func struct {
 	*Imports
-	name     string
-	Args     []*NameType
-	Rets     []*NameType
+	Sig      FuncSig
 	Body     io.WriterTo
 	Variadic bool
 	//TODO: now that Imports is shared with file, this shouldn't be exported.
@@ -21,11 +26,14 @@ type Func struct {
 }
 
 // NewFunc takes the function name and arguments and returns a Func
-func NewFunc(name string, args ...*NameType) *Func {
+func NewFunc(imp *Imports, name string, args ...*NameType) *Func {
+	s := FuncSig{
+		Name: name,
+		Args: args,
+	}
 	return &Func{
-		Imports: NewImports(pkgBuiltin),
-		name:    name,
-		Args:    args,
+		Sig:     s,
+		Imports: imp,
 	}
 }
 
@@ -33,24 +41,30 @@ func NewFunc(name string, args ...*NameType) *Func {
 // generators so that when the file is generated, the func will be generated as
 // part of the file.
 func (f *File) NewFunc(name string, args ...*NameType) *Func {
-	fn := &Func{
-		Imports: f.Imports,
-		name:    name,
-		Args:    args,
-		File:    f,
-	}
+	fn := NewFunc(f.Imports, name, args...)
+	fn.File = f
 	f.AddGenerators(fn)
 	return fn
 }
 
 // Name of the function
-func (f *Func) Name() string { return f.name }
+func (f *Func) Name() string { return f.Sig.Name }
 
-// SetName of the function
-func (f *Func) SetName(name string) { f.name = name }
+// Args returns the function args and fulfills FuncCaller
+func (f *Func) Args() []*NameType { return f.Sig.Args }
 
-// Returns sets the returns on a Func
-func (f *Func) Returns(rets ...*NameType) { f.Rets = rets }
+// Rets returns the function returns and fulfills FuncCaller
+func (f *Func) Rets() []*NameType { return f.Sig.Rets }
+
+// Returns sets the return types on the function
+func (f *Func) Returns(rets ...*NameType) {
+	f.Sig.Rets = rets
+}
+
+// UnnamedReturns set the return types on the function, all with no names.
+func (f *Func) UnnamedReturns(rets ...Type) {
+	f.Sig.Rets = Rets(rets...)
+}
 
 func nameTypeSliceToString(pre Prefixer, nts []*NameType, variadic bool) string {
 	l := len(nts)
@@ -79,24 +93,28 @@ func (f *Func) String() string {
 	return bufpool.PutStr(buf)
 }
 
+// WriteTo writes the Func to a writer
 func (f *Func) WriteTo(w io.Writer) (int64, error) {
 	s := gothicio.NewSumWriter(w)
 	s.WriteString("func ")
-	s.WriteString(f.name)
-	writeArgsRets(s, f.Imports, f.Args, f.Rets, f.Variadic)
+	s.WriteString(f.Sig.Name)
+	writeArgsRets(s, f.Imports, f.Sig.Args, f.Sig.Rets, f.Variadic)
 	s.WriteString(" {\n")
 	f.Body.WriteTo(s)
 	s.WriteString("\n}\n\n")
+	if s.Err != nil {
+		s.Err = errCtx(s.Err, "While writing func %s", f.Sig.Name)
+	}
 	return s.Sum, s.Err
 }
 
 // Prepare adds all the types used in the Args and Rets to the file import.
 func (f *Func) Prepare() error {
 	if f.File != nil {
-		for _, arg := range f.Args {
+		for _, arg := range f.Sig.Args {
 			f.File.AddRefImports(arg.Type().PackageRef())
 		}
-		for _, ret := range f.Rets {
+		for _, ret := range f.Sig.Rets {
 			f.File.AddRefImports(ret.Type().PackageRef())
 		}
 	}
@@ -117,7 +135,7 @@ func (f *Func) Type() FuncType { return &fnT{f} }
 func (f *Func) Call(pre Prefixer, args ...string) string {
 	buf := bufpool.Get()
 	buf.WriteString(pre.Prefix(f.File.Package()))
-	buf.WriteString(f.name)
+	buf.WriteString(f.Sig.Name)
 	buf.WriteRune('(')
 	buf.WriteString(strings.Join(args, ", "))
 	buf.WriteRune(')')
@@ -145,19 +163,19 @@ func (f *fnT) Name() string {
 func (f *fnT) RelStr(pre Prefixer) string {
 	buf := bufpool.Get()
 	buf.WriteString("func(")
-	for i, arg := range f.fn.Args {
+	for i, arg := range f.fn.Sig.Args {
 		if i != 0 {
 			buf.WriteString(", ")
 		}
 		buf.WriteString(arg.T.RelStr(pre))
 	}
-	lr := len(f.fn.Rets)
+	lr := len(f.fn.Sig.Rets)
 	if lr > 1 {
 		buf.WriteString(") (")
 	} else {
 		buf.WriteString(") ")
 	}
-	for i, ret := range f.fn.Rets {
+	for i, ret := range f.fn.Sig.Rets {
 		if i != 0 {
 			buf.WriteString(", ")
 		}
@@ -183,26 +201,32 @@ func (f *fnT) PackageRef() PackageRef {
 
 func (f *fnT) File() *File       { return f.File() }
 func (f *fnT) Kind() Kind        { return FuncKind }
-func (f *fnT) Args() []*NameType { return f.fn.Args }
-func (f *fnT) Rets() []*NameType { return f.fn.Rets }
+func (f *fnT) Args() []*NameType { return f.fn.Sig.Args }
+func (f *fnT) Rets() []*NameType { return f.fn.Sig.Rets }
 func (f *fnT) Variadic() bool    { return f.fn.Variadic }
 
 type funcCall struct {
 	pkg  PackageRef
 	name string
+	args []*NameType
+	rets []*NameType
 }
 
 // FuncCaller produces a string that will call a function. It handles the
 // correct prefixing of the function call.
 type FuncCaller interface {
 	Call(Prefixer, ...string) string
+	Args() []*NameType
+	Rets() []*NameType
 }
 
 // FuncCall defines a callable function in another package
-func FuncCall(pkg PackageRef, name string) FuncCaller {
+func FuncCall(pkg PackageRef, name string, args, rets []*NameType) FuncCaller {
 	return &funcCall{
 		pkg:  pkg,
 		name: name,
+		args: args,
+		rets: rets,
 	}
 }
 
@@ -217,6 +241,9 @@ func (f *funcCall) Call(pre Prefixer, args ...string) string {
 	bufpool.Put(buf)
 	return str
 }
+
+func (f *funcCall) Args() []*NameType { return f.args }
+func (f *funcCall) Rets() []*NameType { return f.rets }
 
 func writeArgsRets(s gothicio.StringWriter, pre Prefixer, args, rets []*NameType, variadic bool) {
 	s.WriteString("(")

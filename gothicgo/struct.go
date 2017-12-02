@@ -136,6 +136,7 @@ func (s *Struct) str() string {
 	return strings.Join(l, "\n")
 }
 
+// WriteTo writes the Struct to the writer
 func (s *Struct) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
 	sum.WriteString("type ")
@@ -192,10 +193,9 @@ func (s *Struct) NewMethod(name string, args ...*NameType) *Method {
 		Ptr:          !s.litMethods,
 		ReceiverName: s.ReceiverName,
 		strct:        s,
-		Func:         NewFunc(name, args...),
+		Func:         NewFunc(s.File().Imports, name, args...),
 	}
 	m.Func.File = s.File()
-	m.Imports = m.Func.File.Imports
 	s.File().AddGenerators(m)
 	s.methods[name] = m
 	return m
@@ -245,6 +245,7 @@ func (f *Field) String() string {
 	return f.Name() + " " + typeString + tags
 }
 
+// WriteTo writes the Field to the writer
 func (f *Field) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
 	if name := f.Name(); name != "" {
@@ -273,6 +274,8 @@ func (f *Field) WriteTo(w io.Writer) (int64, error) {
 		}
 		sum.WriteString("`")
 	}
+
+	sum.Err = errCtx(sum.Err, "While writing field %s", f.nameType.N)
 
 	return sum.Sum, sum.Err
 }
@@ -330,7 +333,7 @@ type Method struct {
 // SetName of the method, also updates the method map in the struct.
 func (m *Method) SetName(name string) {
 	delete(m.strct.methods, m.Func.Name())
-	m.Func.SetName(name)
+	m.Func.Sig.Name = name
 	m.strct.methods[name] = m
 }
 
@@ -341,6 +344,7 @@ func (m *Method) String() string {
 	return bufpool.PutStr(buf)
 }
 
+// WriteTo writes the Method to the writer
 func (m *Method) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
 	sum.WriteString("func (")
@@ -353,10 +357,13 @@ func (m *Method) WriteTo(w io.Writer) (int64, error) {
 	sum.WriteString(m.strct.Name())
 	sum.WriteString(") ")
 	sum.WriteString(m.Func.Name())
-	writeArgsRets(sum, m.strct, m.Func.Args, m.Func.Rets, m.Func.Variadic)
+	writeArgsRets(sum, m.strct, m.Func.Sig.Args, m.Func.Sig.Rets, m.Func.Variadic)
 	sum.WriteString("{\n\t")
 	m.Func.Body.WriteTo(sum)
 	sum.WriteString("\n}")
+
+	sum.Err = errCtx(sum.Err, "While writing method %s:", m.Sig.Name)
+
 	return sum.Sum, sum.Err
 }
 

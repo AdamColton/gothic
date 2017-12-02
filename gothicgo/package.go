@@ -61,7 +61,7 @@ func (p *Package) Prepare() error {
 	for _, f := range p.files {
 		err := f.Prepare()
 		if err != nil {
-			return err
+			return errCtx(err, "Prepare package %s", p.name)
 		}
 	}
 	return nil
@@ -70,14 +70,14 @@ func (p *Package) Prepare() error {
 // Generate calls generate on all file
 func (p *Package) Generate() error {
 	path, _ := filepath.Abs(p.OutputPath)
-	e := os.MkdirAll(path, 0777)
-	if e != nil {
-		return e
+	err := os.MkdirAll(path, 0777)
+	if err != nil {
+		return errCtx(err, "Generate package %s", p.name)
 	}
 	for _, f := range p.files {
 		err := f.Generate()
 		if err != nil {
-			return err
+			return errCtx(err, "Generate package %s", p.name)
 		}
 	}
 	return nil
@@ -184,7 +184,8 @@ type PackageVarRef interface {
 	Type() Type
 }
 
-// NewPackageVarRef returns a reference to a package variable
+// NewPackageVarRef returns a reference to a package variable. Kind is not
+// used internally, so if it is not needed, it is safe for it to be nil.
 func NewPackageVarRef(pkg PackageRef, name string, kind Type) PackageVarRef {
 	return &packageVarRef{
 		pkg:  pkg,

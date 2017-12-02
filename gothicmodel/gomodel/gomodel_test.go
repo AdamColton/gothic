@@ -8,6 +8,9 @@ import (
 )
 
 func TestGoModel(t *testing.T) {
+	TypeTags["datetime"] = Tags{
+		"json": "-",
+	}
 	m, err := gothicmodel.New("test", gothicmodel.Fields{
 		{"Name", "string"},
 		{"Age", "int"},
@@ -25,7 +28,8 @@ func TestGoModel(t *testing.T) {
 	assert.Contains(t, s, "type test struct {")
 	assert.Regexp(t, "Name +string", s)
 	assert.Regexp(t, "Age +int", s)
-	assert.Regexp(t, "LastLogin +time.Time", s)
+	assert.Regexp(t, "LastLogin +time.Time +`json:\"-\"`", s)
+	println(s)
 
 	fs := m.Fields()
 	expected := []Field{

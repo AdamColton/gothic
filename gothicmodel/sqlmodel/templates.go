@@ -15,28 +15,26 @@ var Templates = template.Must(template.New("templates").Parse(`
 	if err != nil {
 		return err
 	}
-	{{.Receiver}}.{{.Primary}} = {{.PrimaryType}}(id)
+	{{.Receiver}}.{{.Primary}} = {{.PrimaryGoType}}(id)
 	return nil
 {{- end}}
 {{define "update" -}}
-	{{"\t"}}_, err := {{.Conn}}.Exec("UPDATE {{.TableNameQ}} SET ({{.Set}}) WHERE {{.PrimaryQ}}=?", {{.Args}}, {{.PrimaryArg}})
+	{{"\t"}}_, err := {{.Conn}}.Exec("UPDATE {{.TableNameQ}} SET {{.Set}} WHERE {{.PrimaryQ}}=?", {{.Args}}, {{.PrimaryArg}})
 	return err
 {{- end}}
-{{define "createTable" -}}
-func init() {
+{{define "createTable"}}
 	gsql.AddMigration("{{.Migration}}",
-	{{.BackTick}}CREATE TABLE IF NOT EXISTS "{{.Name}}" (
+	{{.BackTick}}CREATE TABLE IF NOT EXISTS "{{.TableName}}" (
 			{{.DefineTable}}
 		);{{.BackTick}},
 	"DROP TABLE {{.TableNameQ}};")
-}
-{{- end}}
+{{end}}
 {{define "scan" -}}
 	{{"\t"}}{{.Receiver}} := &{{.Name}}{}
 	{{- range .FieldConverters}}
 	var {{.Name}} {{.GoType}}
 	{{- end}}
-	err := rows.Scan({{.ScanFields}})
+	err := row.Scan({{.ScanFields}})
 	if err != nil {
 		return nil, err
 	}
@@ -47,10 +45,10 @@ func init() {
 {{- end}}
 {{define "select" -}}
 	{{"\t"}}rows, err := {{.Conn}}.Query("SELECT {{.FieldsQ}} FROM {{.TableNameQ}} "+where, args...)
-	defer rows.Close()
-	if err != nil {
+	if err != nil || rows==nil{
 		return nil, err
 	}
+	defer rows.Close()
 	var {{.Receiver}}s []*{{.Name}}
 	for rows.Next() {
 		{{.Receiver}},err := {{.Scanner}}(rows)
@@ -61,9 +59,23 @@ func init() {
 	}
 	return {{.Receiver}}s, nil{{end}}
 {{define "upsert" -}}
-	{{"\t"}}if {{.Receiver}}.{{.Primary}} != {{.PrimaryZeroVal}} {
+	if {{.Receiver}}.{{.Primary}} != {{.PrimaryZeroVal}} {
 	{{template "update" .}}
 	}
 {{template "insert" .}}
+{{- end}}
+{{define "selectsingle" -}}
+	{{"\t"}}{{.Receiver}}, err := {{.Select}}(where+" LIMIT 1", args...)
+	if err != nil || len({{.Receiver}}) == 0 {
+		return nil, err
+	}
+	return {{.Receiver}}[0], nil
+{{- end}}
+{{define "delete" -}}
+	res, err := {{.Conn}}.Exec("DELETE FROM {{.TableNameQ}} WHERE {{.AndConditions}}", {{.Args}})
+	if err != nil || res == nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 {{- end}}
 `))

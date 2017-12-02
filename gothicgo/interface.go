@@ -48,6 +48,7 @@ func (i *Interface) Generate() error {
 	return nil
 }
 
+// WriteTo writes the Interface code to the writer
 func (i *Interface) WriteTo(w io.Writer) (int64, error) {
 	s := gothicio.NewSumWriter(w)
 	s.WriteString("type ")
@@ -59,6 +60,7 @@ func (i *Interface) WriteTo(w io.Writer) (int64, error) {
 	} else {
 		s.WriteString("}\n\n")
 	}
+	s.Err = errCtx(s.Err, "While writing interface %s:", i.name)
 	return s.Sum, s.Err
 }
 
@@ -128,7 +130,7 @@ func (im *interfaceMethod) WriteTo(w io.Writer) (int64, error) {
 	}
 	s.WriteString(typeSliceToString(im.rets, im.ifc.file.Imports, false))
 	s.WriteString(end)
-
+	s.Err = errCtx(s.Err, "While writing interface method %s:", im.name)
 	return s.Sum, s.Err
 }
 

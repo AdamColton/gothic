@@ -9,6 +9,7 @@ type Field struct {
 	name    string
 	kind    string
 	primary bool
+	meta    map[string]string
 }
 
 // Name of the field
@@ -20,6 +21,16 @@ func (f Field) Type() string { return f.kind }
 // Primary returns true if the field is the primary field
 func (f Field) Primary() bool { return f.primary }
 
+func (f Field) Meta(key string) (string, bool) {
+	v, ok := f.meta[key]
+	return v, ok
+}
+
+func (f Field) AddMeta(key, val string) Field {
+	f.meta[key] = val
+	return f
+}
+
 // Model is a generalization of a data structure. It has a name and some number
 // of fields one of which is the primary field
 type Model struct {
@@ -27,6 +38,7 @@ type Model struct {
 	fieldsMap map[string]Field
 	fields    []Field
 	primary   Field
+	meta      map[string]string
 }
 
 // Fields is used to define the fields on a model.
@@ -38,6 +50,7 @@ func New(name string, fields Fields) (*Model, error) {
 		name:      name,
 		fields:    make([]Field, 0, len(fields)),
 		fieldsMap: make(map[string]Field, len(fields)),
+		meta:      make(map[string]string),
 	}
 
 	for _, field := range fields {
@@ -87,6 +100,7 @@ func (m *Model) addField(name, kind string) Field {
 	f := Field{
 		name: name,
 		kind: kind,
+		meta: make(map[string]string),
 	}
 
 	if len(m.fields) == 0 {
@@ -184,4 +198,14 @@ func (m *Model) SkipFields(skip ...string) []Field {
 		}
 	}
 	return fields
+}
+
+func (m *Model) Meta(key string) (string, bool) {
+	v, ok := m.meta[key]
+	return v, ok
+}
+
+func (m *Model) AddMeta(key, val string) *Model {
+	m.meta[key] = val
+	return m
 }

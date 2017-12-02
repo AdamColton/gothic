@@ -73,7 +73,7 @@ func TestUpdate(t *testing.T) {
 	update := sql.Update()
 	update.SetName("updateTest")
 	s := update.String()
-	assert.Contains(t, s, "_, err := gsql.Conn.Exec(\"UPDATE `test` SET (`Name`=?, `Age`=?, `LastLogin`=?) WHERE `ID`=?\", t.Name, t.Age, gsql.TimeToString(t.LastLogin), t.ID)")
+	assert.Contains(t, s, "_, err := gsql.Conn.Exec(\"UPDATE `test` SET `Name`=?, `Age`=?, `LastLogin`=? WHERE `ID`=?\", t.Name, t.Age, gsql.TimeToString(t.LastLogin), t.ID)")
 }
 
 func TestCreate(t *testing.T) {
@@ -93,12 +93,13 @@ func TestScan(t *testing.T) {
 
 	scan := sql.Scanner()
 	s := scan.String()
-	assert.Contains(t, s, "func scantest(rows sql.Scanner) (*test, error) {")
-	assert.Contains(t, s, "err := rows.Scan(&(t.ID), &(t.Name), &(t.Age), &(LastLogin))")
+	assert.Contains(t, s, "func scantest(row gsql.RowScanner) (*test, error) {")
+	assert.Contains(t, s, "err := row.Scan(&(t.ID), &(t.Name), &(t.Age), &(LastLogin))")
+	assert.Contains(t, s, "var LastLogin string")
 	assert.Contains(t, s, "t.LastLogin = gsql.StringToTime(LastLogin)")
 
 	s = sql.File().Imports.String()
-	assert.Contains(t, s, `"database/sql"`)
+	assert.Contains(t, s, `"github.com/adamcolton/buttress/gsql"`)
 }
 
 func TestSelect(t *testing.T) {
@@ -115,6 +116,25 @@ func TestUpsert(t *testing.T) {
 	slct := sql.Upsert()
 	s := slct.String()
 	assert.Contains(t, s, "if t.ID != 0 {")
-	assert.Contains(t, s, "_, err := gsql.Conn.Exec(\"UPDATE `test` SET (`Name`=?, `Age`=?, `LastLogin`=?) WHERE `ID`=?\", t.Name, t.Age, gsql.TimeToString(t.LastLogin), t.ID)")
+	assert.Contains(t, s, "_, err := gsql.Conn.Exec(\"UPDATE `test` SET `Name`=?, `Age`=?, `LastLogin`=? WHERE `ID`=?\", t.Name, t.Age, gsql.TimeToString(t.LastLogin), t.ID)")
 	assert.Contains(t, s, "res, err := gsql.Conn.Exec(\"INSERT INTO `test` (`Name`, `Age`, `LastLogin`) VALUES (?, ?, ?)\", t.Name, t.Age, gsql.TimeToString(t.LastLogin))")
+}
+
+func TestSelectSingle(t *testing.T) {
+	sql := setup()
+
+	single := sql.SelectSingle()
+	s := single.String()
+	assert.Contains(t, s, `t, err := selecttest(where+" LIMIT 1", args...)`)
+	assert.Contains(t, s, `func selectsingletest(where string, args ...interface{}) (*test, error) {`)
+	assert.Contains(t, s, `return t[0], nil`)
+}
+
+func TestDelete(t *testing.T) {
+	sql := setup()
+
+	single := sql.Delete("ID", "Name")
+	s := single.String()
+	assert.Contains(t, s, "res, err := gsql.Conn.Exec(\"DELETE FROM `test` WHERE `ID`=? AND `Name`=?\", t.ID, t.Name)")
+	assert.Contains(t, s, `return res.RowsAffected()`)
 }

@@ -16,7 +16,16 @@ func Struct(pkg *gothicgo.Package, model *gothicmodel.Model) (*GoModel, error) {
 		if !ok {
 			continue
 		}
-		s.AddField(field.Name(), t)
+		goField, err := s.AddField(field.Name(), t)
+		if err != nil {
+			return nil, err
+		}
+		if tags, ok := TypeTags[field.Type()]; ok {
+			goField.Tags = make(map[string]string)
+			for k, v := range tags {
+				goField.Tags[k] = v
+			}
+		}
 	}
 	return &GoModel{
 		Struct: s,

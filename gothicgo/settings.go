@@ -39,20 +39,27 @@ var CommentWidth = 80
 var packages = gothic.New()
 
 // Prepare all packages
-func Prepare() { packages.Prepare() }
+func Prepare() error { return packages.Prepare() }
 
 // Generate all packages
-func Generate() { packages.Generate() }
+func Generate() error { return packages.Generate() }
+
+// Export exports all the packages
+func Export() error {
+	return packages.Export()
+}
 
 func init() {
 	gothic.AddGenerators(packages)
 }
 
+// Comment string that automatically wraps the string
 type Comment struct {
 	Comment string
 	Width   int
 }
 
+// NewComment with default CommentWidth
 func NewComment(comment string) Comment {
 	return Comment{
 		Comment: comment,
@@ -65,6 +72,7 @@ const wsRunes = "\t "
 var commentStart = []byte("// ")
 var nl = []byte("\n")
 
+// WriteTo wraps the comment and writes it to the Writer
 func (c Comment) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
 	targetWidth := c.Width - 3
@@ -93,6 +101,8 @@ func (c Comment) WriteTo(w io.Writer) (int64, error) {
 	sum.Write(commentStart)
 	sum.Write([]byte(c.Comment[cur:]))
 	sum.Write(nl)
+
+	sum.Err = errCtx(sum.Err, "While writing comment:")
 
 	return sum.Sum, sum.Err
 }
