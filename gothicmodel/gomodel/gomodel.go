@@ -5,8 +5,8 @@ import (
 	"github.com/adamcolton/gothic/gothicmodel"
 )
 
-// Struct creats a Go struct from a gothic model.
-func Struct(pkg *gothicgo.Package, model *gothicmodel.Model) (*GoModel, error) {
+// New creates a GoModel from a Gothic model.
+func New(pkg *gothicgo.Package, model *gothicmodel.GothicModel) (*GoModel, error) {
 	s, err := pkg.NewStruct(model.Name())
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func Struct(pkg *gothicgo.Package, model *gothicmodel.Model) (*GoModel, error) {
 // it
 type GoModel struct {
 	*gothicgo.Struct
-	Model *gothicmodel.Model
+	Model *gothicmodel.GothicModel
 }
 
 // Fields lists the Fields on the Model

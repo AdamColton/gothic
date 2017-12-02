@@ -24,7 +24,7 @@ func setup() *SQL {
 	if err != nil {
 		panic(err)
 	}
-	gm, err := gomodel.Struct(pkg, m)
+	gm, err := gomodel.New(pkg, m)
 	if err != nil {
 		panic(err)
 	}

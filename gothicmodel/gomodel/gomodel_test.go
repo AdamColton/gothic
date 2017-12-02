@@ -20,7 +20,7 @@ func TestGoModel(t *testing.T) {
 
 	pkg, err := gothicgo.NewPackage("test")
 	assert.NoError(t, err)
-	gm, err := Struct(pkg, m)
+	gm, err := New(pkg, m)
 	assert.NoError(t, err)
 
 	gm.Prepare()

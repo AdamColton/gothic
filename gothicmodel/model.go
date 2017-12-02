@@ -31,9 +31,9 @@ func (f Field) AddMeta(key, val string) Field {
 	return f
 }
 
-// Model is a generalization of a data structure. It has a name and some number
+// GothicModel is a generalization of a data structure. It has a name and some number
 // of fields one of which is the primary field
-type Model struct {
+type GothicModel struct {
 	name      string
 	fieldsMap map[string]Field
 	fields    []Field
@@ -45,8 +45,8 @@ type Model struct {
 type Fields [][2]string
 
 // New model
-func New(name string, fields Fields) (*Model, error) {
-	m := &Model{
+func New(name string, fields Fields) (*GothicModel, error) {
+	m := &GothicModel{
 		name:      name,
 		fields:    make([]Field, 0, len(fields)),
 		fieldsMap: make(map[string]Field, len(fields)),
@@ -62,7 +62,7 @@ func New(name string, fields Fields) (*Model, error) {
 }
 
 // Must creates a new model and panics if there is an error
-func Must(name string, fields Fields) *Model {
+func Must(name string, fields Fields) *GothicModel {
 	m, err := New(name, fields)
 	if err != nil {
 		panic(err)
@@ -71,7 +71,7 @@ func Must(name string, fields Fields) *Model {
 }
 
 // AddFields to a model
-func (m *Model) AddFields(fields Fields) error {
+func (m *GothicModel) AddFields(fields Fields) error {
 	names := make(map[string]struct{})
 	for _, field := range fields {
 		if err := m.validate(field[0], field[1]); err != nil {
@@ -89,14 +89,14 @@ func (m *Model) AddFields(fields Fields) error {
 }
 
 // AddField by name and kind
-func (m *Model) AddField(name, kind string) (Field, error) {
+func (m *GothicModel) AddField(name, kind string) (Field, error) {
 	if err := m.validate(name, kind); err != nil {
 		return Field{}, err
 	}
 	return m.addField(name, kind), nil
 }
 
-func (m *Model) addField(name, kind string) Field {
+func (m *GothicModel) addField(name, kind string) Field {
 	f := Field{
 		name: name,
 		kind: kind,
@@ -112,7 +112,7 @@ func (m *Model) addField(name, kind string) Field {
 	return f
 }
 
-func (m *Model) validate(name, kind string) error {
+func (m *GothicModel) validate(name, kind string) error {
 	if name == "" {
 		return fmt.Errorf("Name cannot be empty")
 	}
@@ -126,7 +126,7 @@ func (m *Model) validate(name, kind string) error {
 }
 
 // AddPrimary changes which field is primary
-func (m *Model) AddPrimary(name, kind string) (Field, error) {
+func (m *GothicModel) AddPrimary(name, kind string) (Field, error) {
 	if len(m.fields) == 0 {
 		return m.AddField(name, kind)
 	}
@@ -152,15 +152,24 @@ func (m *Model) AddPrimary(name, kind string) (Field, error) {
 }
 
 // Field gets a field by name
-func (m *Model) Field(name string) (Field, bool) {
-	k, b := m.fieldsMap[name]
-	return k, b
+func (m *GothicModel) Field(name string) (Field, bool) {
+	f, b := m.fieldsMap[name]
+	return f, b
+}
+
+// MustField gets a field by name and will panic if the field does not exist
+func (m *GothicModel) MustField(name string) Field {
+	f, b := m.fieldsMap[name]
+	if !b {
+		panic(fmt.Sprintf(`MustField) "%s" is not defined on model %s`, name, m.name))
+	}
+	return f
 }
 
 // Fields returns the fiels on the model. If no field names are given, all
 // fields are returned. If a list of names is given, only those fields are
 // returned.
-func (m *Model) Fields(names ...string) []Field {
+func (m *GothicModel) Fields(names ...string) []Field {
 	if names == nil {
 		cp := make([]Field, len(m.fields))
 		copy(cp, m.fields)
@@ -176,17 +185,17 @@ func (m *Model) Fields(names ...string) []Field {
 }
 
 // Name of the model
-func (m *Model) Name() string {
+func (m *GothicModel) Name() string {
 	return m.name
 }
 
 // Primary field on the model
-func (m *Model) Primary() Field {
+func (m *GothicModel) Primary() Field {
 	return m.primary
 }
 
 // SkipFields returns all fields excluding those defined to skip
-func (m *Model) SkipFields(skip ...string) []Field {
+func (m *GothicModel) SkipFields(skip ...string) []Field {
 	sm := make(map[string]bool, len(skip))
 	for _, s := range skip {
 		sm[s] = true
@@ -200,12 +209,12 @@ func (m *Model) SkipFields(skip ...string) []Field {
 	return fields
 }
 
-func (m *Model) Meta(key string) (string, bool) {
+func (m *GothicModel) Meta(key string) (string, bool) {
 	v, ok := m.meta[key]
 	return v, ok
 }
 
-func (m *Model) AddMeta(key, val string) *Model {
+func (m *GothicModel) AddMeta(key, val string) *GothicModel {
 	m.meta[key] = val
 	return m
 }
