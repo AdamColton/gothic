@@ -78,6 +78,16 @@ func TestUpdate(t *testing.T) {
 
 func TestCreate(t *testing.T) {
 	sql := setup()
+	sql.Indexes = append(sql.Indexes,
+		Index{
+			Cols: []string{"Name", "Age"},
+		},
+		Index{
+			Type: "UNIQUE",
+			Name: "UniqueNames",
+			Cols: []string{"Name"},
+		},
+	)
 
 	var buf bytes.Buffer
 	_, err := sql.Create("12345_create_user").WriteTo(&buf)
@@ -86,6 +96,8 @@ func TestCreate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, s, "\"ID\" int UNSIGNED DEFAULT 0 NOT NULL,")
 	assert.Contains(t, s, "CREATE TABLE IF NOT EXISTS \"test\" (")
+	assert.Contains(t, s, `INDEX ("Name", "Age"),`)
+	assert.Contains(t, s, `UNIQUE "UniqueNames" ("Name")`)
 }
 
 func TestScan(t *testing.T) {
@@ -133,8 +145,60 @@ func TestSelectSingle(t *testing.T) {
 func TestDelete(t *testing.T) {
 	sql := setup()
 
-	single := sql.Delete("ID", "Name")
-	s := single.String()
+	del := sql.Delete("ID", "Name")
+	s := del.String()
 	assert.Contains(t, s, "res, err := gsql.Conn.Exec(\"DELETE FROM `test` WHERE `ID`=? AND `Name`=?\", t.ID, t.Name)")
 	assert.Contains(t, s, `return res.RowsAffected()`)
+}
+
+func TestWhereEqual(t *testing.T) {
+	sql := setup()
+
+	getByID := sql.WhereEqual("GetByID", false, []FieldArg{
+		{"id", "ID"},
+	})
+	s := getByID.String()
+	assert.Contains(t, s, "func GetByID(id uint) (*test, error) {")
+	assert.Contains(t, s, "t, err := selecttest(\"WHERE `ID`=? LIMIT 1\", id)")
+	assert.Contains(t, s, "return t[0], nil")
+
+	getByAge := sql.WhereEqual("GetByNameAge", true, []FieldArg{
+		{"name", "Name"},
+		{"age", "Age"},
+	})
+	s = getByAge.String()
+	assert.Contains(t, s, "func GetByNameAge(name string, age int) ([]*test, error) {")
+	assert.Contains(t, s, "return selecttest(\"WHERE `Name`=? AND `Age`=?\", name, age)")
+
+	mustGetByID := sql.MustWhereEqual("MustGetByID", false, []FieldArg{
+		{"id", "ID"},
+	})
+	s = mustGetByID.String()
+	assert.Contains(t, s, "func MustGetByID(id uint) *test {")
+	assert.Contains(t, s, "t, err := selecttest(\"WHERE `ID`=? LIMIT 1\", id)")
+	assert.Contains(t, s, "return t[0]")
+
+	mustGetByAge := sql.MustWhereEqual("MustGetByNameAge", true, []FieldArg{
+		{"name", "Name"},
+		{"age", "Age"},
+	})
+	s = mustGetByAge.String()
+	assert.Contains(t, s, "func MustGetByNameAge(name string, age int) []*test {")
+	assert.Contains(t, s, "t, err := selecttest(\"WHERE `Name`=? AND `Age`=?\", name, age)")
+}
+
+func TestConstVars(t *testing.T) {
+	sql := setup()
+
+	wt := sql.ConstTableNameString("testTable")
+	buf := &bytes.Buffer{}
+	wt.WriteTo(buf)
+	expected := "const testTable = \"`test`\""
+	assert.Equal(t, expected, buf.String())
+
+	buf.Reset()
+	wt = sql.ConstFieldsString("testFields")
+	wt.WriteTo(buf)
+	expected = "const testFields = \"`test`.`ID`, `test`.`Name`, `test`.`Age`, `test`.`LastLogin`\""
+	assert.Equal(t, expected, buf.String())
 }

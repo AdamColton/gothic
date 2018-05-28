@@ -24,7 +24,7 @@ var Templates = template.Must(template.New("templates").Parse(`
 {{- end}}
 {{define "createTable"}}
 	gsql.AddMigration("{{.Migration}}",
-	{{.BackTick}}CREATE TABLE IF NOT EXISTS "{{.TableName}}" (
+	{{.BackTick}}CREATE TABLE IF NOT EXISTS {{.TableNameLQ}} (
 			{{.DefineTable}}
 		);{{.BackTick}},
 	"DROP TABLE {{.TableNameQ}};")
@@ -72,10 +72,37 @@ var Templates = template.Must(template.New("templates").Parse(`
 	return {{.Receiver}}[0], nil
 {{- end}}
 {{define "delete" -}}
-	res, err := {{.Conn}}.Exec("DELETE FROM {{.TableNameQ}} WHERE {{.AndConditions}}", {{.Args}})
+	{{"\t"}}res, err := {{.Conn}}.Exec("DELETE FROM {{.TableNameQ}} WHERE {{.AndConditions}}", {{.Args}})
 	if err != nil || res == nil {
 		return 0, err
 	}
 	return res.RowsAffected()
+{{- end}}
+{{define "whereEqual" -}}
+{{"\t"}}return {{.Select}}("WHERE {{.AndConditions}}", {{.Custom}})
+{{- end}}
+{{define "whereEqualSingle" -}}
+{{"\t"}}{{.Receiver}}, err := {{.Select}}("WHERE {{.AndConditions}} LIMIT 1", {{.Custom}})
+	if err != nil || len({{.Receiver}}) == 0 {
+		return nil, err
+	}
+	return {{.Receiver}}[0], nil
+{{- end}}
+{{define "mustWhereEqual" -}}
+{{"\t"}} {{.Receiver}}, err := {{.Select}}("WHERE {{.AndConditions}}", {{.Custom}})
+	if err != nil {
+		panic(err)
+	}
+	return {{.Receiver}}
+{{- end}}
+{{define "mustWhereEqualSingle" -}}
+{{"\t"}}{{.Receiver}}, err := {{.Select}}("WHERE {{.AndConditions}} LIMIT 1", {{.Custom}})
+	if err != nil {
+		panic(err)
+	}
+	if len({{.Receiver}}) == 0 {
+		return nil
+	}
+	return {{.Receiver}}[0]
 {{- end}}
 `))

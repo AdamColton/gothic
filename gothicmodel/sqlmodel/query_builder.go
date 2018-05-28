@@ -22,6 +22,7 @@ type QueryBuilder struct {
 	Migration       string
 	//err             error
 	*SQL
+	Custom string
 }
 
 func (s *SQL) queryBuilder(fields []string, allFields bool) *QueryBuilder {
@@ -160,15 +161,20 @@ func (q *QueryBuilder) GenericMethod(name string) *gothicgo.Method {
 }
 
 // GenericFunction takes a template and wraps it in a function that returns
-// either a single instance or a slice of the struct.
-func (q *QueryBuilder) GenericFunction(name string, slice bool) *gothicgo.Func {
+// either a single instance or a slice of the struct. If must is false, the
+// last return argument of the generated function will be an Error.
+func (q *QueryBuilder) GenericFunction(name string, slice, must bool) *gothicgo.Func {
 	q.addImport()
 	fn := q.File().NewFunc(name + q.Name())
 	t := q.MethodType()
 	if slice {
 		t = gothicgo.SliceOf(t)
 	}
-	fn.UnnamedReturns(t, gothicgo.ErrorType)
+	if must {
+		fn.UnnamedReturns(t)
+	} else {
+		fn.UnnamedReturns(t, gothicgo.ErrorType)
+	}
 	fn.Body = q.TemplateWriterTo(name)
 	return fn
 }
@@ -179,18 +185,18 @@ func (q *QueryBuilder) DefineTable() string {
 
 	if q.Primary() != "" {
 		rows = append(rows,
-			fmt.Sprintf(`"%s" %s`, q.Primary(), q.PrimarySQLType()),
-			fmt.Sprintf(`PRIMARY KEY("%s")`, q.Primary()),
+			fmt.Sprintf(`%s%s%s %s`, q.LongIDQuote, q.Primary(), q.LongIDQuote, q.PrimarySQLType()),
+			fmt.Sprintf(`PRIMARY KEY(%s%s%s)`, q.LongIDQuote, q.Primary(), q.LongIDQuote),
 		)
 	}
 
 	for _, field := range q.fields {
 		f, _ := q.Field(field)
-		rows = append(rows, fmt.Sprintf(`"%s" %s`, field, f.SQLType))
+		rows = append(rows, fmt.Sprintf(`%s%s%s %s`, q.LongIDQuote, field, q.LongIDQuote, f.SQLType))
 	}
 
-	for idx := range q.Index {
-		rows = append(rows, fmt.Sprintf(`INDEX ("%s")`, idx))
+	for _, idx := range q.Indexes {
+		rows = append(rows, idx.String())
 	}
 	return strings.Join(rows, ",\n\t\t\t")
 }
