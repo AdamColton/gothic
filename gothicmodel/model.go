@@ -31,6 +31,17 @@ func (f Field) AddMeta(key, val string) Field {
 	return f
 }
 
+// Metas returns a slice of the keys. A new slice is generated each time.
+func (f Field) Metas() []string {
+	ms := make([]string, len(f.meta))
+	i := 0
+	for k := range f.meta {
+		ms[i] = k
+		i++
+	}
+	return ms
+}
+
 // GothicModel is a generalization of a data structure. It has a name and some number
 // of fields one of which is the primary field
 type GothicModel struct {
@@ -217,4 +228,15 @@ func (m *GothicModel) Meta(key string) (string, bool) {
 func (m *GothicModel) AddMeta(key, val string) *GothicModel {
 	m.meta[key] = val
 	return m
+}
+
+// Metas returns a slice of the keys. A new slice is generated each time.
+func (m *GothicModel) Metas() []string {
+	ms := make([]string, len(m.meta))
+	i := 0
+	for k := range m.meta {
+		ms[i] = k
+		i++
+	}
+	return ms
 }
