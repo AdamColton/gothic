@@ -119,6 +119,18 @@ type TemplateExecutor interface {
 	Execute(io.Writer, interface{}) error
 }
 
+type TemplateWrapper struct {
+	TemplateExecutor
+}
+
+func (t TemplateWrapper) TemplateTo(name string, data interface{}) *TemplateTo {
+	return &TemplateTo{
+		TemplateExecutor: t,
+		Name:             name,
+		Data:             data,
+	}
+}
+
 // TemplateTo writes a template and fulfils WriterTo. If Name is blank, the base
 // template is used, otherwise the named template is used.
 type TemplateTo struct {
@@ -170,3 +182,12 @@ type BufferPool interface {
 
 // Pool will be used if not nil when a Buffer is needed.
 var Pool BufferPool
+
+type BufferCloser struct {
+	*bytes.Buffer
+}
+
+// Close allows BufferCloser to fill the closer interface
+func (bc BufferCloser) Close() error {
+	return nil
+}
