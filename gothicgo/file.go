@@ -122,3 +122,13 @@ func (f *File) Package() *Package { return f.pkg }
 
 // Name returns the name of the file.
 func (f *File) Name() string { return f.name }
+
+// String returns the file as Go code. This is intended for testing and
+// debugging, not code generation
+func (f *File) String() string {
+	f.Prepare()
+	buf := gothicio.BufferCloser{bufpool.Get()}
+	f.Writer = buf
+	f.Generate()
+	return bufpool.PutStr(buf.Buffer)
+}
