@@ -36,3 +36,9 @@ func errCtx(err error, format string, data ...interface{}) error {
 		ErrStr: ctxStr,
 	}
 }
+
+func panicOnErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}

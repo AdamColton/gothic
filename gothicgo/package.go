@@ -23,7 +23,7 @@ type Package struct {
 var nameRe = regexp.MustCompile(`^[\w\-]+$`)
 
 // ErrBadPackageName is returned when a package name is not allowed
-var ErrBadPackageName = errStr("Bad package name")
+const ErrBadPackageName = errStr("Bad package name")
 
 // NewPackage creates a new Package. The import path will use the ImportPath
 // set on the project.
@@ -47,9 +47,7 @@ func NewPackage(name string) (*Package, error) {
 // MustPackage calls NewPackage and panics if there is an error
 func MustPackage(name string) *Package {
 	pkg, err := NewPackage(name)
-	if err != nil {
-		panic(err)
-	}
+	panicOnErr(err)
 	return pkg
 }
 
@@ -164,9 +162,7 @@ func NewPackageRef(ref string) (PackageRef, error) {
 // MustPackageRef returns a new PackageRef and panics if there is an error
 func MustPackageRef(ref string) PackageRef {
 	p, err := NewPackageRef(ref)
-	if err != nil {
-		panic(err)
-	}
+	panicOnErr(err)
 	return p
 }
 
