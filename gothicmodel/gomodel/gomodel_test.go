@@ -18,6 +18,10 @@ func TestGoModel(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
+	// test meta handler
+	m.MustField("Age").AddMeta("rumply", "Aissor")
+	FieldMetaHandlers["rumply"] = MetaToTag
+
 	pkg, err := gothicgo.NewPackage("test")
 	assert.NoError(t, err)
 	gm, err := New(pkg, m)
@@ -27,9 +31,8 @@ func TestGoModel(t *testing.T) {
 	s := gm.String()
 	assert.Contains(t, s, "type test struct {")
 	assert.Regexp(t, "Name +string", s)
-	assert.Regexp(t, "Age +int", s)
+	assert.Regexp(t, "Age +int +`rumply:\"Aissor\"`", s)
 	assert.Regexp(t, "LastLogin +time.Time +`json:\"-\"`", s)
-	println(s)
 
 	fs := m.Fields()
 	expected := []Field{
@@ -53,8 +56,4 @@ func TestGoModel(t *testing.T) {
 	assert.Equal(t, true, gmfs[0].Primary())
 	assert.Equal(t, false, gmfs[1].Primary())
 	assert.Equal(t, gothicgo.StringType, gmfs[0].GoType())
-
-	f, ok := m.Field("Age")
-	assert.True(t, ok)
-	assert.Equal(t, "Age", f.Name())
 }

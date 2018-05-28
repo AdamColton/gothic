@@ -5,6 +5,14 @@ import (
 	"github.com/adamcolton/gothic/gothicmodel"
 )
 
+func Must(pkg *gothicgo.Package, model *gothicmodel.GothicModel) *GoModel {
+	gm, err := New(pkg, model)
+	if err != nil {
+		panic(err)
+	}
+	return gm
+}
+
 // New creates a GoModel from a Gothic model.
 func New(pkg *gothicgo.Package, model *gothicmodel.GothicModel) (*GoModel, error) {
 	s, err := pkg.NewStruct(model.Name())
@@ -27,22 +35,43 @@ func New(pkg *gothicgo.Package, model *gothicmodel.GothicModel) (*GoModel, error
 			}
 		}
 	}
-	return &GoModel{
-		Struct: s,
-		Model:  model,
-	}, nil
+
+	gm := &GoModel{
+		Struct:      s,
+		GothicModel: model,
+	}
+
+	for _, k := range model.Metas() {
+		if h, ok := ModelMetaHandlers[k]; ok {
+			v, _ := model.Meta(k)
+			h(k, v, gm)
+		}
+	}
+
+	for _, field := range model.Fields() {
+		if _, ok := Types[field.Type()]; !ok {
+			continue
+		}
+		for _, k := range field.Metas() {
+			if h, ok := FieldMetaHandlers[k]; ok {
+				v, _ := field.Meta(k)
+				h(k, v, field, gm)
+			}
+		}
+	}
+	return gm, nil
 }
 
 // GoModel embeds a Struct and includes a reference to the Model that generated
 // it
 type GoModel struct {
 	*gothicgo.Struct
-	Model *gothicmodel.GothicModel
+	GothicModel *gothicmodel.GothicModel
 }
 
 // Fields lists the Fields on the Model
 func (g *GoModel) Fields() []Field {
-	gmFs := g.Model.Fields()
+	gmFs := g.GothicModel.Fields()
 	ggFs := make([]Field, 0, g.Struct.FieldCount())
 	for _, f := range gmFs {
 		kind, ok := Types[f.Type()]
@@ -60,7 +89,7 @@ func (g *GoModel) Fields() []Field {
 // Field returns a Field by name
 func (g *GoModel) Field(name string) (Field, bool) {
 	var field Field
-	mf, ok := g.Model.Field(name)
+	mf, ok := g.GothicModel.Field(name)
 	if !ok {
 		return field, false
 	}
