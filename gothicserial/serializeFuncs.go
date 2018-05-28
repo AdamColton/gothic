@@ -34,7 +34,7 @@ func (sf *SerializeFuncs) Unmarshal(v, pkg string) string {
 // Returns the package name the Marshal and Unmarshal functions are in
 func (s *SerializeFuncs) PackageName() string {
 	if s.PkgName == "" && s.F != nil {
-		return s.F.Package().Name
+		return s.F.Package().Name()
 	}
 	return s.PkgName
 }

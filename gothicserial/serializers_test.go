@@ -8,7 +8,7 @@ import (
 
 func TestRegisterSerializeDef(t *testing.T) {
 	ctx := New()
-	p := gothicgo.NewPackage("test")
+	p := gothicgo.MustPackage("test")
 	sd := SerializeFuncs{
 		MarshalStr:   "test",
 		UnmarshalStr: "test",
