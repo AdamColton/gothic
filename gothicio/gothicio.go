@@ -45,10 +45,13 @@ func (s *SumWriter) Write(b []byte) (int, error) {
 // MultiWrite takes a Writer and a slice of WriterTos and passes the Writer into
 // each of them and writes the seperator between each.
 func MultiWrite(w io.Writer, tos []io.WriterTo, seperator string) (int64, error) {
-	sbs := []byte(seperator)
+	var sbs []byte
+	if seperator != "" {
+		sbs = []byte(seperator)
+	}
 	var s int64
 	for i, t := range tos {
-		if i != 0 {
+		if sbs != nil && i != 0 {
 			n, err := w.Write(sbs)
 			if err != nil {
 				return s, err
