@@ -1,7 +1,7 @@
 package gothicgo
 
 import (
-	"github.com/adamcolton/sai"
+	"bytes"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"testing"
@@ -14,11 +14,27 @@ func (s writeToString) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
+type writecloser struct {
+	*bytes.Buffer
+}
+
+func (wc *writecloser) Close() error {
+	return nil
+}
+
 func TestNameTypeSliceToString(t *testing.T) {
-	s := []*NameType{Arg("first", StringType), Arg("middle", StringType), Arg("last", StringType), Arg("title", StringType)}
+	s := []NameType{
+		Arg("first", StringType),
+		Arg("middle", StringType),
+		Arg("last", StringType),
+		Arg("title", StringType),
+	}
 	assert.Equal(t, "first, middle, last, title string", nameTypeSliceToString(nil, s, false))
 
-	s = []*NameType{Arg("first", StringType), Arg("age", IntType)}
+	s = []NameType{
+		Arg("first", StringType),
+		Arg("age", IntType),
+	}
 	assert.Equal(t, "first string, age int", nameTypeSliceToString(nil, s, false))
 }
 
@@ -48,7 +64,9 @@ func TestWriteFunc(t *testing.T) {
 	assert.NoError(t, err)
 	p.OutputPath = "test"
 
-	wc := sai.New()
+	wc := &writecloser{
+		Buffer: &bytes.Buffer{},
+	}
 	f := p.File("testFile")
 	f.Writer = wc
 
@@ -82,7 +100,10 @@ func TestFuncCall(t *testing.T) {
 	assert.NoError(t, err)
 	file := p.File("test")
 
-	args := []*NameType{Ret(StringType), Ret(StringType)}
+	args := []NameType{
+		Ret(StringType),
+		Ret(StringType),
+	}
 	fc := FuncCall(p, "myFn", args, nil)
 	assert.Equal(t, "myFn(Maggie, Bea)", fc.Call(file, "Maggie", "Bea"))
 	assert.Equal(t, fc.Args(), args)
@@ -95,5 +116,13 @@ func TestFuncCall(t *testing.T) {
 	fc = file.NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
 	assert.Equal(t, "Foo(adam, 32)", fc.Call(file, "adam", "32"))
 	assert.Equal(t, "test.Foo(adam, 32)", fc.Call(pre, "adam", "32"))
+}
 
+func TestFuncComment(t *testing.T) {
+	f := NewFunc(NewImports(PkgBuiltin()), "Foo")
+	f.Body = writeToString("")
+	f.Comment = "is a basic function with no args"
+
+	got := f.String()
+	assert.Contains(t, got, "// Foo is a basic function with no args")
 }

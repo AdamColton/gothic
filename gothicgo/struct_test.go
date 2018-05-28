@@ -20,7 +20,7 @@ func (i istruct) Prefix(ref PackageRef) string {
 
 func TestFieldString(t *testing.T) {
 	f := &Field{
-		nameType: &NameType{
+		nameType: NameType{
 			N: "bar",
 			T: PointerTo(DefStruct(MustPackageRef("foo"), "bar")),
 		},
@@ -45,7 +45,7 @@ func TestFieldString(t *testing.T) {
 
 func TestFieldMethods(t *testing.T) {
 	f := &Field{
-		nameType: &NameType{
+		nameType: NameType{
 			N: "bar",
 			T: PointerTo(DefStruct(MustPackageRef("foo"), "bar")),
 		},
@@ -116,6 +116,7 @@ import (
 	"time"
 )
 
+// test struct with comment, pointer fields and an embedded field
 type test struct {
 	time time.Time
 }
@@ -127,6 +128,7 @@ type test struct {
 	s, err := p.NewStruct("test")
 	assert.NoError(t, err)
 	s.AddField("time", DefStruct(MustPackageRef("time"), "Time"))
+	s.Comment = "struct with comment, pointer fields and an embedded field"
 
 	wc := &closerBuf{&bytes.Buffer{}}
 	f := s.file
@@ -151,6 +153,7 @@ type test struct {
 	time time.Time
 }
 
+// foo says Hi
 func (t *test) foo(name string) {
 	fmt.Println("Hi", name)
 }
@@ -166,6 +169,7 @@ func (t *test) foo(name string) {
 	m := s.NewMethod("foo", Arg("name", StringType))
 	m.Body = writeToString("fmt.Println(\"Hi\", name)")
 	m.AddRefImports(MustPackageRef("fmt"))
+	m.Comment = "says Hi"
 
 	wc := &closerBuf{&bytes.Buffer{}}
 	f := s.file

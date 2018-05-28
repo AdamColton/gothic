@@ -2,23 +2,23 @@ package gothicgo
 
 type builtin string
 
-func (b builtin) Name() string                { return string(b) }
-func (b builtin) String() string              { return string(b) }
-func (b builtin) RelStr(Prefixer) string      { return string(b) }
-func (b builtin) PackageRef() PackageRef      { return pkgBuiltin }
-func (b builtin) File() *File                 { return nil }
-func (b builtin) Kind() Kind                  { return BuiltinKind }
-func (b builtin) AsRet() *NameType            { return Ret(b) }
-func (b builtin) AsArg(name string) *NameType { return Arg(name, b) }
-func (b builtin) Ptr() Type                   { return PointerTo(b) }
-func (b builtin) Slice() Type                 { return SliceOf(b) }
+func (b builtin) Name() string               { return string(b) }
+func (b builtin) String() string             { return string(b) }
+func (b builtin) RelStr(Prefixer) string     { return string(b) }
+func (b builtin) PackageRef() PackageRef     { return pkgBuiltin }
+func (b builtin) File() *File                { return nil }
+func (b builtin) Kind() Kind                 { return BuiltinKind }
+func (b builtin) AsRet() NameType            { return Ret(b) }
+func (b builtin) AsArg(name string) NameType { return Arg(name, b) }
+func (b builtin) Ptr() Type                  { return PointerTo(b) }
+func (b builtin) Slice() Type                { return SliceOf(b) }
 
 // HelpfulType fulfils Type and can also be returned as a pointer, slice, arg
 // or return.
 type HelpfulType interface {
 	Type
-	AsRet() *NameType
-	AsArg(name string) *NameType
+	AsRet() NameType
+	AsArg(name string) NameType
 	Ptr() Type
 	Slice() Type
 }

@@ -19,6 +19,7 @@ type Struct struct {
 	methods      map[string]*Method
 	litMethods   bool
 	ReceiverName string
+	Comment      string
 }
 
 // NewStruct adds a Struct to a Package, the file for the struct is automatically
@@ -27,11 +28,23 @@ func (p *Package) NewStruct(name string) (*Struct, error) {
 	return p.File(name + ".gothic").NewStruct(name)
 }
 
+// MustStruct adds a new Struct to an existing file and panics if it fails
+func (p *Package) MustStruct(name string) *Struct {
+	return p.File(name + ".gothic").MustStruct(name)
+}
+
+// MustStruct adds a new Struct to an existing file and panics if it fails
+func (f *File) MustStruct(name string) *Struct {
+	s, err := f.NewStruct(name)
+	panicOnErr(err)
+	return s
+}
+
 // NewStruct adds a new Struct to an existing file
 func (f *File) NewStruct(name string) (*Struct, error) {
 	pkg := f.Package()
 	if _, exists := pkg.structs[name]; exists {
-		return nil, fmt.Errorf("Struct %d already exists in %d", name, pkg.Name())
+		return nil, fmt.Errorf("Struct '%s' already exists in package '%s'", name, pkg.Name())
 	}
 	s := &Struct{
 		name:         name,
@@ -54,15 +67,15 @@ func (s *Struct) Ptr() PointerType { return PointerTo(&sT{s}) }
 
 // AsRet is a helper for returning a pointer to the Struct in a funciton or
 // method
-func (s *Struct) AsRet() *NameType { return Ret(PointerTo(&sT{s})) }
+func (s *Struct) AsRet() NameType { return Ret(PointerTo(&sT{s})) }
 
 // AsArg is a helper for passing a pointer to the Struct as an argument to a
 // funciton or method
-func (s *Struct) AsArg(name string) *NameType { return Arg(name, PointerTo(&sT{s})) }
+func (s *Struct) AsArg(name string) NameType { return Arg(name, PointerTo(&sT{s})) }
 
 // AsNmRet is a helper for returning a pointer to the Struct in a funciton or
 // method as a named return.
-func (s *Struct) AsNmRet(name string) *NameType { return NmRet(name, PointerTo(&sT{s})) }
+func (s *Struct) AsNmRet(name string) NameType { return NmRet(name, PointerTo(&sT{s})) }
 
 // File getter. Receiver methods can be added to the file or the Package can be
 // accessed through the file and receivers can be added to other files in the
@@ -106,7 +119,7 @@ func (s *Struct) AddField(name string, typ Type) (*Field, error) {
 		return f, fmt.Errorf("Field %s already exists in %s", key, s.name)
 	}
 	f := &Field{
-		nameType: &NameType{
+		nameType: NameType{
 			N: name,
 			T: typ,
 		},
@@ -139,6 +152,9 @@ func (s *Struct) str() string {
 // WriteTo writes the Struct to the writer
 func (s *Struct) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
+	if s.Comment != "" {
+		NewComment(strings.Join([]string{s.Name(), s.Comment}, " ")).WriteTo(sum)
+	}
 	sum.WriteString("type ")
 	sum.WriteString(s.name)
 	sum.WriteString(" struct {")
@@ -188,7 +204,7 @@ func (s *Struct) MethodType() Type {
 }
 
 // NewMethod on the struct
-func (s *Struct) NewMethod(name string, args ...*NameType) *Method {
+func (s *Struct) NewMethod(name string, args ...NameType) *Method {
 	m := &Method{
 		Ptr:          !s.litMethods,
 		ReceiverName: s.ReceiverName,
@@ -210,7 +226,7 @@ func (s *Struct) Method(name string) (*Method, bool) {
 // Field is a struct field. Tags follows the convention of `key1:"value1"
 // key2:"value2"`. If no value is defined only the key is printed.
 type Field struct {
-	nameType *NameType
+	nameType NameType
 	Tags     map[string]string
 	stct     Prefixer
 }
@@ -347,6 +363,9 @@ func (m *Method) String() string {
 // WriteTo writes the Method to the writer
 func (m *Method) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
+	if m.Comment != "" {
+		NewComment(strings.Join([]string{m.Name(), m.Comment}, " ")).WriteTo(sum)
+	}
 	sum.WriteString("func (")
 	sum.WriteString(m.ReceiverName)
 	if m.Ptr {
@@ -359,7 +378,9 @@ func (m *Method) WriteTo(w io.Writer) (int64, error) {
 	sum.WriteString(m.Func.Name())
 	writeArgsRets(sum, m.strct, m.Func.Sig.Args, m.Func.Sig.Rets, m.Func.Variadic)
 	sum.WriteString("{\n\t")
-	m.Func.Body.WriteTo(sum)
+	if m.Func.Body != nil {
+		m.Func.Body.WriteTo(sum)
+	}
 	sum.WriteString("\n}")
 
 	sum.Err = errCtx(sum.Err, "While writing method %s:", m.Sig.Name)
