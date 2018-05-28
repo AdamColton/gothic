@@ -13,7 +13,7 @@ func TestPackage(t *testing.T) {
 }
 
 func TestComment(t *testing.T) {
-	expected := "// this is a test this is a test FOO this is a test this is a test this is a\n// FOO test this is a test this is a test this FOO is a test this is a test\n// this is a test this is a test this is a test\n"
+	expected := "// this is a test this is a test FOO this is a test this is a test this is a FOO\n// test this is a test this is a test this FOO is a test this is a test this is\n// a test this is a test this is a test\n"
 	var buf bytes.Buffer
 	Comment{
 		Comment: "this is a test this is a test FOO this is a test this is a test this is a FOO test this is a test this is a test this FOO is a test this is a test this is a test this is a test this is a test",

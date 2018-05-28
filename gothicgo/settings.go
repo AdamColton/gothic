@@ -2,10 +2,7 @@ package gothicgo
 
 import (
 	"github.com/adamcolton/gothic"
-	"github.com/adamcolton/gothic/gothicio"
-	"io"
 	"regexp"
-	"strings"
 )
 
 var importPath string //TODO: can we deduce the Import path with importResolver?
@@ -51,58 +48,4 @@ func Export() error {
 
 func init() {
 	gothic.AddGenerators(packages)
-}
-
-// Comment string that automatically wraps the string
-type Comment struct {
-	Comment string
-	Width   int
-}
-
-// NewComment with default CommentWidth
-func NewComment(comment string) Comment {
-	return Comment{
-		Comment: comment,
-		Width:   CommentWidth,
-	}
-}
-
-const wsRunes = "\t "
-
-var commentStart = []byte("// ")
-var nl = []byte("\n")
-
-// WriteTo wraps the comment and writes it to the Writer
-func (c Comment) WriteTo(w io.Writer) (int64, error) {
-	sum := gothicio.NewSumWriter(w)
-	targetWidth := c.Width - 3
-	until := len(c.Comment) - targetWidth
-
-	cur := 0
-	for cur < until && sum.Err == nil {
-		s := c.Comment[cur : cur+targetWidth]
-		end := strings.IndexRune(s, '\n')
-		if end == -1 {
-			end = strings.LastIndexAny(s, " \t")
-			if end == -1 {
-				s = c.Comment[cur:]
-				end = strings.IndexAny(s, " \t\n")
-				if end == -1 {
-					break
-				}
-			}
-		}
-		sum.Write(commentStart)
-		sum.Write([]byte(s[:end]))
-		sum.Write(nl)
-		cur += end + 1
-	}
-
-	sum.Write(commentStart)
-	sum.Write([]byte(c.Comment[cur:]))
-	sum.Write(nl)
-
-	sum.Err = errCtx(sum.Err, "While writing comment:")
-
-	return sum.Sum, sum.Err
 }
