@@ -89,6 +89,7 @@ func (w *LineWrappingWriter) Write(b []byte) (int, error) {
 	start := 0
 	lineLen := w.lineLength
 	lastWS := -1
+	llAtLastWS := -1
 	done := true
 	i := 0
 	for i < len(b) {
@@ -107,6 +108,7 @@ func (w *LineWrappingWriter) Write(b []byte) (int, error) {
 		// 0xA0 is non-breaking space
 		if unicode.IsSpace(r) && r != 0xA0 {
 			lastWS = i
+			llAtLastWS = lineLen
 		} else {
 			done = false
 		}
@@ -116,7 +118,7 @@ func (w *LineWrappingWriter) Write(b []byte) (int, error) {
 			start = lastWS + 1
 			lastWS = -1
 			w.WriteNewline()
-			lineLen = w.lnPad
+			lineLen += -llAtLastWS + w.lnPad
 		}
 		i += size
 	}
