@@ -249,12 +249,16 @@ func (s *SQL) whereEqual(name, templateName string, returnSlice, must bool, fiel
 	callArgs := make([]string, len(fieldArgs))
 	for i, f := range fieldArgs {
 		fields[i] = f.Field
-		callArgs[i] = f.Arg
 		args[i].N = f.Arg
 		gf, ok := s.GoModel.Field(f.Field)
 		if !ok {
 			// TODO: return error
 			return nil
+		}
+		if c, ok := converters[gf.Type()]; ok {
+			callArgs[i] = c.toDB.Call(s.File(), f.Arg)
+		} else {
+			callArgs[i] = f.Arg
 		}
 		args[i].T = gf.GoType()
 	}

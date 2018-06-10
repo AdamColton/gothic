@@ -156,10 +156,11 @@ func TestWhereEqual(t *testing.T) {
 
 	getByID := sql.WhereEqual("GetByID", false, []FieldArg{
 		{"id", "ID"},
+		{"date", "LastLogin"},
 	})
 	s := getByID.String()
-	assert.Contains(t, s, "func GetByID(id uint) (*test, error) {")
-	assert.Contains(t, s, "t, err := selecttest(\"WHERE `ID`=? LIMIT 1\", id)")
+	assert.Contains(t, s, "func GetByID(id uint, date time.Time) (*test, error) {")
+	assert.Contains(t, s, "t, err := selecttest(\"WHERE `ID`=? AND `LastLogin`=? LIMIT 1\", id, gsql.TimeToString(date))")
 	assert.Contains(t, s, "return t[0], nil")
 
 	getByAge := sql.WhereEqual("GetByNameAge", true, []FieldArg{
