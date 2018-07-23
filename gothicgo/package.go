@@ -1,6 +1,8 @@
 package gothicgo
 
 import (
+	"github.com/adamcolton/gothic/gothicio"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -175,7 +177,7 @@ func PkgBuiltin() PackageRef { return pkgBuiltin }
 type PackageVarRef interface {
 	Name() string
 	String() string
-	RelStr(Prefixer) string
+	PrefixWriteTo(io.Writer, Prefixer) (int64, error)
 	PackageRef() PackageRef
 	Type() Type
 }
@@ -196,8 +198,13 @@ type packageVarRef struct {
 	kind Type
 }
 
-func (pv *packageVarRef) Name() string               { return pv.name }
-func (pv *packageVarRef) String() string             { return DefaultPrefixer.Prefix(pv.pkg) + pv.name }
-func (pv *packageVarRef) RelStr(pre Prefixer) string { return pre.Prefix(pv.pkg) + pv.name }
-func (pv *packageVarRef) PackageRef() PackageRef     { return pv.pkg }
-func (pv *packageVarRef) Type() Type                 { return pv.kind }
+func (pv *packageVarRef) Name() string   { return pv.name }
+func (pv *packageVarRef) String() string { return DefaultPrefixer.Prefix(pv.pkg) + pv.name }
+func (pv *packageVarRef) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	sw.WriteString(pre.Prefix(pv.pkg))
+	sw.WriteString(pv.name)
+	return sw.Rets()
+}
+func (pv *packageVarRef) PackageRef() PackageRef { return pv.pkg }
+func (pv *packageVarRef) Type() Type             { return pv.kind }

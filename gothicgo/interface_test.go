@@ -32,6 +32,11 @@ func TestDefInterface(t *testing.T) {
 	assert.Equal(t, i.File(), (*File)(nil))
 	assert.Equal(t, i.Kind(), InterfaceKind)
 	assert.Equal(t, i.PackageRef(), p)
-	assert.Equal(t, i.RelStr(NewImports(p)), "Tester")
-	assert.Equal(t, i.RelStr(NewImports(MustPackageRef("foo"))), "test.Tester")
+	buf := &bytes.Buffer{}
+	i.PrefixWriteTo(buf, NewImports(p))
+	assert.Equal(t, "Tester", buf.String())
+
+	buf.Reset()
+	i.PrefixWriteTo(buf, NewImports(MustPackageRef("foo")))
+	assert.Equal(t, "test.Tester", buf.String())
 }

@@ -1,6 +1,7 @@
 package gothicgo
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -59,7 +60,16 @@ func TestMapType(t *testing.T) {
 	fb := DefStruct(foo, "bar")
 	p := PointerTo(DefStruct(person, "Person"))
 	tp := MapOf(fb, p)
-	assert.Equal(t, "map[foo.bar]*Person", tp.RelStr(NewImports(person)), "Relative to person")
-	assert.Equal(t, "map[bar]*person.Person", tp.RelStr(NewImports(foo)))
-	assert.Equal(t, "map[foo.bar]*person.Person", tp.RelStr(DefaultPrefixer))
+
+	buf := &bytes.Buffer{}
+	tp.PrefixWriteTo(buf, NewImports(person))
+	assert.Equal(t, "map[foo.bar]*Person", buf.String(), "Relative to person")
+
+	buf.Reset()
+	tp.PrefixWriteTo(buf, NewImports(foo))
+	assert.Equal(t, "map[bar]*person.Person", buf.String())
+
+	buf.Reset()
+	tp.PrefixWriteTo(buf, DefaultPrefixer)
+	assert.Equal(t, "map[foo.bar]*person.Person", buf.String())
 }

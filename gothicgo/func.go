@@ -71,17 +71,27 @@ func nameTypeSliceToString(pre Prefixer, nts []NameType, variadic bool) string {
 	l := len(nts)
 	var s = make([]string, l)
 	l--
+	b1 := bufpool.Get()
+	b2 := bufpool.Get()
 	for i := l; i >= 0; i-- {
-		if ts := nts[i].T.RelStr(pre); i < l && ts == nts[i+1].T.RelStr(pre) {
+		nts[i].T.PrefixWriteTo(b1, pre)
+		if i < l {
+			nts[i+1].T.PrefixWriteTo(b2, pre)
+		}
+		if i < l && b1.String() == b2.String() {
 			s[i] = nts[i].N
 		} else if i == l && variadic {
-			s[i] = fmt.Sprintf("%s ...%s", nts[i].N, ts)
+			s[i] = fmt.Sprintf("%s ...%s", nts[i].N, b1.String())
 		} else if nts[i].N != "" {
-			s[i] = fmt.Sprintf("%s %s", nts[i].N, ts)
+			s[i] = fmt.Sprintf("%s %s", nts[i].N, b1.String())
 		} else {
-			s[i] = ts
+			s[i] = b1.String()
 		}
+		b1.Reset()
+		b2.Reset()
 	}
+	bufpool.Put(b1)
+	bufpool.Put(b2)
 	return strings.Join(s, ", ")
 }
 
@@ -163,39 +173,39 @@ type fnT struct {
 }
 
 func (f *fnT) Name() string {
-	return f.RelStr(DefaultPrefixer)
+	return f.String()
 }
 
-func (f *fnT) RelStr(pre Prefixer) string {
-	buf := bufpool.Get()
-	buf.WriteString("func(")
+func (f *fnT) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	sw.WriteString("func(")
 	for i, arg := range f.fn.Sig.Args {
 		if i != 0 {
-			buf.WriteString(", ")
+			sw.WriteString(", ")
 		}
-		buf.WriteString(arg.T.RelStr(pre))
+		arg.T.PrefixWriteTo(sw, pre)
 	}
 	lr := len(f.fn.Sig.Rets)
 	if lr > 1 {
-		buf.WriteString(") (")
+		sw.WriteString(") (")
 	} else {
-		buf.WriteString(") ")
+		sw.WriteString(") ")
 	}
 	for i, ret := range f.fn.Sig.Rets {
 		if i != 0 {
-			buf.WriteString(", ")
+			sw.WriteString(", ")
 		}
-		buf.WriteString(ret.T.RelStr(pre))
+		ret.T.PrefixWriteTo(sw, pre)
 	}
 
 	if lr > 1 {
-		buf.WriteString(")")
+		sw.WriteString(")")
 	}
-	return bufpool.PutStr(buf)
+	return sw.Sum, sw.Err
 }
 
 func (f *fnT) String() string {
-	return f.RelStr(DefaultPrefixer)
+	return typeToString(f, DefaultPrefixer)
 }
 
 func (f *fnT) PackageRef() PackageRef {

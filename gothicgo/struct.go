@@ -22,6 +22,10 @@ type Struct struct {
 	Comment      string
 }
 
+type NewStructer interface {
+	NewStruct(name string) (*Struct, error)
+}
+
 // NewStruct adds a Struct to a Package, the file for the struct is automatically
 // generated
 func (p *Package) NewStruct(name string) (*Struct, error) {
@@ -254,7 +258,7 @@ func (f *Field) String() string {
 		sort.Strings(s)
 		tags = " `" + strings.Join(s, " ") + "`"
 	}
-	typeString := f.Type().RelStr(f.stct)
+	typeString := typeToString(f.Type(), f.stct)
 	if f.Name() == "" {
 		return typeString + tags
 	}
@@ -268,7 +272,7 @@ func (f *Field) WriteTo(w io.Writer) (int64, error) {
 		sum.WriteString(name)
 		sum.WriteString(" ")
 	}
-	sum.WriteString(f.Type().RelStr(f.stct))
+	f.Type().PrefixWriteTo(sum, f.stct)
 
 	if len(f.Tags) > 0 {
 		sum.WriteString(" `")
@@ -314,8 +318,11 @@ func (s *sT) String() string         { return s.S.PackageRef().String() + "." + 
 func (s *sT) File() *File            { return s.S.File() }
 func (s *sT) PackageRef() PackageRef { return s.S.PackageRef() }
 func (s *sT) Kind() Kind             { return StructKind }
-func (s *sT) RelStr(p Prefixer) string {
-	return p.Prefix(s.S.PackageRef()) + s.S.Name()
+func (s *sT) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	sw.WriteString(p.Prefix(s.S.PackageRef()))
+	sw.WriteString(s.S.Name())
+	return sw.Rets()
 }
 
 type structT struct {
@@ -323,12 +330,17 @@ type structT struct {
 	name string
 }
 
-func (s *structT) Name() string             { return s.name }
-func (s *structT) String() string           { return s.ref.Name() + "." + s.name }
-func (s *structT) File() *File              { return nil }
-func (s *structT) RelStr(p Prefixer) string { return p.Prefix(s.ref) + s.name }
-func (s *structT) PackageRef() PackageRef   { return s.ref }
-func (s *structT) Kind() Kind               { return StructKind }
+func (s *structT) Name() string   { return s.name }
+func (s *structT) String() string { return s.ref.Name() + "." + s.name }
+func (s *structT) File() *File    { return nil }
+func (s *structT) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	sw.WriteString(p.Prefix(s.ref))
+	sw.WriteString(s.Name())
+	return sw.Rets()
+}
+func (s *structT) PackageRef() PackageRef { return s.ref }
+func (s *structT) Kind() Kind             { return StructKind }
 
 // DefStruct returns a StructType for a struct in a package.
 func DefStruct(ref PackageRef, name string) StructType {

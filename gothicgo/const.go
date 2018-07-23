@@ -5,14 +5,12 @@ import (
 	"io"
 )
 
-//TODO: ConstBlock
-
 type ConstIotaBlock struct {
-	Type     Type
-	Rows     []string
-	Comment  string
-	Iota     string
-	Prefixer Prefixer
+	Type    Type
+	Rows    []string
+	Comment string
+	Iota    string
+	Prefixer
 }
 
 const (
@@ -34,7 +32,7 @@ func (cib *ConstIotaBlock) WriteTo(w io.Writer) (int64, error) {
 	s.WriteString("const (\n\t")
 	s.WriteString(cib.Rows[0])
 	s.WriteRune(' ')
-	s.WriteString(cib.Type.RelStr(cib.Prefixer))
+	cib.Type.PrefixWriteTo(s, cib)
 	s.WriteString(" = ")
 	if cib.Iota == "" {
 		s.WriteString("iota")

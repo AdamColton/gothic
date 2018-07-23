@@ -1,5 +1,10 @@
 package gothicgo
 
+import (
+	"github.com/adamcolton/gothic/gothicio"
+	"io"
+)
+
 // MapType extends the Type interface with Map specific information
 type MapType interface {
 	Type
@@ -12,9 +17,20 @@ type mapT struct {
 	elem Type
 }
 
-func (m *mapT) Name() string             { return "map[" + m.key.Name() + "]" + m.elem.Name() }
-func (m *mapT) String() string           { return m.RelStr(DefaultPrefixer) }
-func (m *mapT) RelStr(p Prefixer) string { return "map[" + m.key.RelStr(p) + "]" + m.elem.RelStr(p) }
+func (m *mapT) Name() string { return "map[" + m.key.Name() + "]" + m.elem.Name() }
+
+func (m *mapT) String() string {
+	return typeToString(m, DefaultPrefixer)
+}
+
+func (m *mapT) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	sw.WriteString("map[")
+	m.key.PrefixWriteTo(sw, p)
+	sw.WriteRune(']')
+	m.elem.PrefixWriteTo(sw, p)
+	return sw.Rets()
+}
 
 // PackageRef will always return PkgBuiltin() on Map. Packages of the key and element can
 // be inspected independantly

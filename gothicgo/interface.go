@@ -2,6 +2,7 @@ package gothicgo
 
 import (
 	"fmt"
+	"github.com/adamcolton/gothic/bufpool"
 	"github.com/adamcolton/gothic/gothicio"
 	"io"
 	"strings"
@@ -68,13 +69,17 @@ func typeSliceToString(ts []Type, pre Prefixer, variadic bool) string {
 	l := len(ts)
 	var s = make([]string, l)
 	l--
+	buf := bufpool.Get()
 	for i, t := range ts {
+		t.PrefixWriteTo(buf, pre)
 		if i == l && variadic {
-			s[i] = " ..." + t.RelStr(pre)
+			s[i] = " ..." + buf.String()
 		} else {
-			s[i] = t.RelStr(pre)
+			s[i] = buf.String()
 		}
+		buf.Reset()
 	}
+	bufpool.Put(buf)
 	return strings.Join(s, ", ")
 }
 
@@ -93,9 +98,12 @@ func (i *Interface) String() string {
 	return pkg + i.name
 }
 
-// RelStr returns a string with the interface name and package if necessary.
-func (i *Interface) RelStr(pre Prefixer) string {
-	return pre.Prefix(i.file.pkg) + i.name
+// WriteTo writes the interface name and package if necessary.
+func (i *Interface) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	sw.WriteString(pre.Prefix(i.file.pkg))
+	sw.WriteString(i.name)
+	return sw.Rets()
 }
 
 // PackageRef for the package Interface is in, fulfills Type interface.
@@ -131,7 +139,7 @@ func (im *interfaceMethod) WriteTo(w io.Writer) (int64, error) {
 	s.WriteString(typeSliceToString(im.rets, im.ifc.file.Imports, false))
 	s.WriteString(end)
 	s.Err = errCtx(s.Err, "While writing interface method %s:", im.name)
-	return s.Sum, s.Err
+	return s.Rets()
 }
 
 type interfaceRef struct {
@@ -150,8 +158,11 @@ func DefInterface(pkg PackageRef, name string) Type {
 
 func (i *interfaceRef) Name() string   { return i.name }
 func (i *interfaceRef) String() string { return i.pkg.Name() + "." + i.name }
-func (i *interfaceRef) RelStr(pre Prefixer) string {
-	return pre.Prefix(i.pkg) + i.name
+func (i *interfaceRef) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	sw.WriteString(pre.Prefix(i.pkg))
+	sw.WriteString(i.name)
+	return sw.Rets()
 }
 func (i *interfaceRef) PackageRef() PackageRef { return i.pkg }
 func (i *interfaceRef) File() *File            { return nil }
