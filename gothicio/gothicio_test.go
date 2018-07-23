@@ -58,3 +58,10 @@ func TestTemplate(t *testing.T) {
 	twt.WriteTo(buf)
 	assert.Equal(t, "My name is testing", buf.String())
 }
+
+func TestWriteTo(t *testing.T) {
+	wt := StringWriterTo("this is a test")
+	b, err := WriteTo(wt)
+	assert.NoError(t, err)
+	assert.Equal(t, string(wt), string(b))
+}

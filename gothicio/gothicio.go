@@ -42,6 +42,10 @@ func (s *SumWriter) Write(b []byte) (int, error) {
 	return n, s.Err
 }
 
+func (s *SumWriter) Rets() (int64, error) {
+	return s.Sum, s.Err
+}
+
 // MultiWrite takes a Writer and a slice of WriterTos and passes the Writer into
 // each of them and writes the seperator between each.
 func MultiWrite(w io.Writer, tos []io.WriterTo, seperator string) (int64, error) {
@@ -153,13 +157,8 @@ func NewTemplateTo(template TemplateExecutor, name string, data interface{}) *Te
 
 // WriteTo writes a template and fulfils WriterTo.
 func (t *TemplateTo) WriteTo(w io.Writer) (int64, error) {
-	var buf *bytes.Buffer
 	var err error
-	if Pool != nil {
-		buf = Pool.Get()
-	} else {
-		buf = &bytes.Buffer{}
-	}
+	buf := get()
 
 	if t.Name == "" {
 		err = t.Execute(buf, t.Data)
@@ -171,9 +170,7 @@ func (t *TemplateTo) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	n, err := w.Write(buf.Bytes())
-	if Pool != nil {
-		Pool.Put(buf)
-	}
+	put(buf)
 	return int64(n), err
 }
 
@@ -190,7 +187,40 @@ type BufferCloser struct {
 	*bytes.Buffer
 }
 
+func get() *bytes.Buffer {
+	if Pool != nil {
+		return Pool.Get()
+	}
+	return &bytes.Buffer{}
+}
+
+func put(buf *bytes.Buffer) {
+	if Pool != nil {
+		Pool.Put(buf)
+	}
+}
+
 // Close allows BufferCloser to fill the closer interface
 func (bc BufferCloser) Close() error {
 	return nil
+}
+
+// WriteTo a buffer and return the bytes. If a buffer pool is setup, that will
+// be used.
+func WriteTo(w io.WriterTo) ([]byte, error) {
+	buf := get()
+	_, err := w.WriteTo(buf)
+	if Pool != nil {
+		var b []byte
+		if err == nil {
+			b := make([]byte, buf.Len())
+			copy(b, buf.Bytes())
+		}
+		put(buf)
+		return b, err
+	}
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
