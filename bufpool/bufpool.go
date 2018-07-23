@@ -54,5 +54,7 @@ func PutAndCopy(buf *bytes.Buffer) []byte {
 
 // PutStr returns a buffer from the pool and returns it's value as a string
 func PutStr(buf *bytes.Buffer) string {
-	return string(PutAndCopy(buf))
+	s := buf.String() // this makes a copy
+	Put(buf)
+	return s
 }
