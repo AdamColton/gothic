@@ -5,8 +5,8 @@ import (
 	"github.com/adamcolton/gothic/gothicmodel"
 )
 
-func Must(pkg *gothicgo.Package, model *gothicmodel.GothicModel) *GoModel {
-	gm, err := New(pkg, model)
+func Must(parent gothicgo.NewStructer, model *gothicmodel.GothicModel) *GoModel {
+	gm, err := New(parent, model)
 	if err != nil {
 		panic(err)
 	}
@@ -14,8 +14,8 @@ func Must(pkg *gothicgo.Package, model *gothicmodel.GothicModel) *GoModel {
 }
 
 // New creates a GoModel from a Gothic model.
-func New(pkg *gothicgo.Package, model *gothicmodel.GothicModel) (*GoModel, error) {
-	s, err := pkg.NewStruct(model.Name())
+func New(parent gothicgo.NewStructer, model *gothicmodel.GothicModel) (*GoModel, error) {
+	s, err := parent.NewStruct(model.Name())
 	if err != nil {
 		return nil, err
 	}
