@@ -6,7 +6,6 @@ import (
 
 type builtin string
 
-func (b builtin) Name() string               { return string(b) }
 func (b builtin) PackageRef() PackageRef     { return pkgBuiltin }
 func (b builtin) File() *File                { return nil }
 func (b builtin) Kind() Kind                 { return BuiltinKind }
@@ -18,8 +17,13 @@ func (b builtin) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	n, err := w.Write([]byte(b))
 	return int64(n), err
 }
+
 func (b builtin) String() string {
 	return typeToString(b, DefaultPrefixer)
+}
+
+func (b builtin) StructEmbedName() string {
+	return string(b)
 }
 
 // Built in Go types

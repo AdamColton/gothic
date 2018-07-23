@@ -183,7 +183,6 @@ func (t *test) foo(name string) {
 func TestDefStruct(t *testing.T) {
 	s := DefStruct(MustPackageRef("foo"), "Bar")
 	assert.Equal(t, "foo", s.PackageRef().String())
-	assert.Equal(t, "Bar", s.Name())
 }
 
 func TestStructType(t *testing.T) {

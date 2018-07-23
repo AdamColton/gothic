@@ -156,7 +156,6 @@ func DefInterface(pkg PackageRef, name string) Type {
 	}
 }
 
-func (i *interfaceRef) Name() string   { return i.name }
 func (i *interfaceRef) String() string { return i.pkg.Name() + "." + i.name }
 func (i *interfaceRef) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)

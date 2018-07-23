@@ -91,7 +91,6 @@ func TestFuncType(t *testing.T) {
 
 	ft := f.Type()
 
-	assert.Equal(t, "func(string, int) *test.Person", ft.Name())
 	assert.Equal(t, "func(string, int) *test.Person", ft.String())
 }
 

@@ -30,7 +30,6 @@ const (
 // a *gothicgo.Package if the Type is part of the Gothic generation.
 type Type interface {
 	PrefixWriteTo(io.Writer, Prefixer) (int64, error)
-	Name() string // TODO: Remove this
 	String() string
 	PackageRef() PackageRef
 	File() *File // TODO: Remove this
@@ -59,4 +58,8 @@ func typeToString(t Type, p Prefixer) string {
 	b := bufpool.Get()
 	t.PrefixWriteTo(b, p)
 	return bufpool.PutStr(b)
+}
+
+type StructEmbeddable interface {
+	StructEmbedName() string
 }

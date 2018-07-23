@@ -15,7 +15,6 @@ type pointerT struct {
 	Type
 }
 
-func (p *pointerT) Name() string   { return "*" + p.Type.Name() }
 func (p *pointerT) String() string { return typeToString(p, DefaultPrefixer) }
 func (p *pointerT) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)
@@ -28,5 +27,15 @@ func (p *pointerT) Elem() Type { return p.Type }
 
 // PointerTo returns a PointerType to the underlying type.
 func PointerTo(t Type) PointerType {
-	return &pointerT{t}
+	p := &pointerT{t}
+	if _, ok := t.(StructEmbeddable); ok {
+		return embeddablePointerWrapper{p}
+	}
+	return p
+}
+
+type embeddablePointerWrapper struct{ *pointerT }
+
+func (e embeddablePointerWrapper) StructEmbedName() string {
+	return e.Type.(StructEmbeddable).StructEmbedName()
 }

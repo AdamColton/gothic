@@ -27,7 +27,6 @@ func TestDefInterface(t *testing.T) {
 	p := MustPackageRef("test")
 	i := DefInterface(p, "Tester")
 
-	assert.Equal(t, i.Name(), "Tester")
 	assert.Equal(t, i.String(), "test.Tester")
 	assert.Equal(t, i.File(), (*File)(nil))
 	assert.Equal(t, i.Kind(), InterfaceKind)

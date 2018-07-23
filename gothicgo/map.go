@@ -17,8 +17,6 @@ type mapT struct {
 	elem Type
 }
 
-func (m *mapT) Name() string { return "map[" + m.key.Name() + "]" + m.elem.Name() }
-
 func (m *mapT) String() string {
 	return typeToString(m, DefaultPrefixer)
 }

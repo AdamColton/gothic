@@ -172,10 +172,6 @@ type fnT struct {
 	fn *Func
 }
 
-func (f *fnT) Name() string {
-	return f.String()
-}
-
 func (f *fnT) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)
 	sw.WriteString("func(")

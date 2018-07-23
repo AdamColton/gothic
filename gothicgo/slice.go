@@ -15,7 +15,6 @@ type sliceT struct {
 	Type
 }
 
-func (s *sliceT) Name() string   { return "[]" + s.Type.Name() }
 func (s *sliceT) String() string { return typeToString(s, DefaultPrefixer) }
 func (s *sliceT) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)

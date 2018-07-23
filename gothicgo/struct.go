@@ -117,7 +117,11 @@ func (s *Struct) FieldCount() int {
 func (s *Struct) AddField(name string, typ Type) (*Field, error) {
 	key := name
 	if name == "" {
-		key = typ.Name()
+		if emb, ok := typ.(StructEmbeddable); ok {
+			key = emb.StructEmbedName()
+		} else {
+			return nil, fmt.Errorf("Cannot Embed Type: ", typ.String())
+		}
 	}
 	if f, exists := s.fields[key]; exists {
 		return f, fmt.Errorf("Field %s already exists in %s", key, s.name)
@@ -139,6 +143,10 @@ func (s *Struct) AddField(name string, typ Type) (*Field, error) {
 // Embed a type as a field
 func (s *Struct) Embed(typ Type) (*Field, error) {
 	return s.AddField("", typ)
+}
+
+func (s *Struct) StructEmbedName() string {
+	return s.Name()
 }
 
 func (s *Struct) str() string {
@@ -313,7 +321,6 @@ type sT struct {
 	}
 }
 
-func (s *sT) Name() string           { return s.S.Name() }
 func (s *sT) String() string         { return s.S.PackageRef().String() + "." + s.S.Name() }
 func (s *sT) File() *File            { return s.S.File() }
 func (s *sT) PackageRef() PackageRef { return s.S.PackageRef() }
@@ -330,13 +337,12 @@ type structT struct {
 	name string
 }
 
-func (s *structT) Name() string   { return s.name }
 func (s *structT) String() string { return s.ref.Name() + "." + s.name }
 func (s *structT) File() *File    { return nil }
 func (s *structT) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)
 	sw.WriteString(p.Prefix(s.ref))
-	sw.WriteString(s.Name())
+	sw.WriteString(s.name)
 	return sw.Rets()
 }
 func (s *structT) PackageRef() PackageRef { return s.ref }
@@ -349,6 +355,7 @@ func DefStruct(ref PackageRef, name string) StructType {
 		name: name,
 	}
 }
+func (s *structT) StructEmbedName() string { return s.name }
 
 // Method on a struct
 type Method struct {
