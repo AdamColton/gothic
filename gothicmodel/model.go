@@ -48,31 +48,36 @@ type GothicModel struct {
 	name      string
 	fieldsMap map[string]Field
 	fields    []Field
-	primary   Field
+	primary   int
 	meta      map[string]string
 }
 
 // Fields is used to define the fields on a model.
 type Fields [][2]string
 
-// New model
+// New model, the first field will be set to primary
 func New(name string, fields Fields) (*GothicModel, error) {
 	m := &GothicModel{
 		name:      name,
 		fields:    make([]Field, 0, len(fields)),
 		fieldsMap: make(map[string]Field, len(fields)),
 		meta:      make(map[string]string),
+		primary:   -1,
 	}
 
-	for _, field := range fields {
-		if _, err := m.AddField(field[0], field[1]); err != nil {
-			return nil, err
-		}
+	err := m.validateFields(fields)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, f := range fields {
+		m.addField(f[0], f[1], i == 0)
 	}
 	return m, nil
 }
 
-// Must creates a new model and panics if there is an error
+// Must creates a new model and panics if there is an error. The first field
+// will be set to primary.
 func Must(name string, fields Fields) *GothicModel {
 	m, err := New(name, fields)
 	if err != nil {
@@ -83,6 +88,17 @@ func Must(name string, fields Fields) *GothicModel {
 
 // AddFields to a model
 func (m *GothicModel) AddFields(fields Fields) error {
+	err := m.validateFields(fields)
+	if err != nil {
+		return err
+	}
+	for _, field := range fields {
+		m.addField(field[0], field[1], false)
+	}
+	return nil
+}
+
+func (m *GothicModel) validateFields(fields Fields) error {
 	names := make(map[string]struct{})
 	for _, field := range fields {
 		if err := m.validate(field[0], field[1]); err != nil {
@@ -93,9 +109,6 @@ func (m *GothicModel) AddFields(fields Fields) error {
 		}
 		names[field[0]] = struct{}{}
 	}
-	for _, field := range fields {
-		m.addField(field[0], field[1])
-	}
 	return nil
 }
 
@@ -104,20 +117,27 @@ func (m *GothicModel) AddField(name, kind string) (Field, error) {
 	if err := m.validate(name, kind); err != nil {
 		return Field{}, err
 	}
-	return m.addField(name, kind), nil
+	return m.addField(name, kind, false), nil
 }
 
-func (m *GothicModel) addField(name, kind string) Field {
+func (m *GothicModel) addField(name, kind string, primary bool) Field {
 	f := Field{
 		name: name,
 		kind: kind,
 		meta: make(map[string]string),
 	}
 
-	if len(m.fields) == 0 {
+	if primary {
+		if m.primary > -1 {
+			old := m.fields[m.primary]
+			old.primary = false
+			m.fieldsMap[old.name] = old
+			m.fields[m.primary] = old
+		}
 		f.primary = true
-		m.primary = f
+		m.primary = len(m.fields)
 	}
+
 	m.fields = append(m.fields, f)
 	m.fieldsMap[name] = f
 	return f
@@ -138,28 +158,10 @@ func (m *GothicModel) validate(name, kind string) error {
 
 // AddPrimary changes which field is primary
 func (m *GothicModel) AddPrimary(name, kind string) (Field, error) {
-	if len(m.fields) == 0 {
-		return m.AddField(name, kind)
-	}
-
-	var f Field
 	if err := m.validate(name, kind); err != nil {
-		return f, err
+		return Field{}, err
 	}
-
-	f.name = name
-	f.kind = kind
-	f.primary = true
-
-	old := m.primary
-	old.primary = false
-	m.fieldsMap[old.name] = old
-	m.fields[0] = old
-
-	m.primary = f
-	m.fieldsMap[f.name] = f
-	m.fields = append([]Field{f}, m.fields...)
-	return f, nil
+	return m.addField(name, kind, true), nil
 }
 
 // Field gets a field by name
@@ -202,7 +204,10 @@ func (m *GothicModel) Name() string {
 
 // Primary field on the model
 func (m *GothicModel) Primary() Field {
-	return m.primary
+	if m.primary > -1 {
+		return m.fields[m.primary]
+	}
+	return Field{}
 }
 
 // SkipFields returns all fields excluding those defined to skip

@@ -42,13 +42,13 @@ func TestAddPrimary(t *testing.T) {
 
 	fs := m.Fields()
 	if assert.Len(t, fs, 3) {
-		assert.True(t, fs[0].Primary())
+		assert.False(t, fs[0].Primary())
 		assert.False(t, fs[1].Primary())
-		assert.False(t, fs[2].Primary())
+		assert.True(t, fs[2].Primary())
 
-		assert.Equal(t, "newPrimary", fs[0].Name())
-		assert.Equal(t, "initialPrimary", fs[1].Name())
-		assert.Equal(t, "neverPrimary", fs[2].Name())
+		assert.Equal(t, "initialPrimary", fs[0].Name())
+		assert.Equal(t, "neverPrimary", fs[1].Name())
+		assert.Equal(t, "newPrimary", fs[2].Name())
 	}
 }
 
