@@ -24,6 +24,9 @@ func (s *sliceT) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 }
 func (s *sliceT) Kind() Kind { return SliceKind }
 func (s *sliceT) Elem() Type { return s.Type }
+func (s *sliceT) RegisterImports(i *Imports) {
+	s.Type.RegisterImports(i)
+}
 
 // SliceOf returns a SliceType around t.
 func SliceOf(t Type) SliceType {

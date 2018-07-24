@@ -106,6 +106,15 @@ func (i *Interface) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	return sw.Rets()
 }
 
+func (i *Interface) RegisterImports(im *Imports) {
+	//TODO: this is temporary, make it better
+	for _, m := range i.methods {
+		if r, ok := m.(RegisterImports); ok {
+			r.RegisterImports(im)
+		}
+	}
+}
+
 // PackageRef for the package Interface is in, fulfills Type interface.
 func (i *Interface) PackageRef() PackageRef { return i.file.pkg }
 
@@ -166,3 +175,7 @@ func (i *interfaceRef) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 func (i *interfaceRef) PackageRef() PackageRef { return i.pkg }
 func (i *interfaceRef) File() *File            { return nil }
 func (i *interfaceRef) Kind() Kind             { return InterfaceKind }
+
+func (i *interfaceRef) RegisterImports(im *Imports) {
+	im.AddRefImports(i.pkg)
+}

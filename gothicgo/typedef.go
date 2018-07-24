@@ -16,6 +16,16 @@ type TypeDef struct {
 	Ptr          bool
 }
 
+type NewTypeDefiner interface {
+	NewTypeDef(name string, t Type) *TypeDef
+}
+
+// NewStruct adds a Struct to a Package, the file for the struct is automatically
+// generated
+func (p *Package) NewTypeDef(name string, t Type) *TypeDef {
+	return p.File(name+".gothic").NewTypeDef(name, t)
+}
+
 func (f *File) NewTypeDef(name string, t Type) *TypeDef {
 	td := &TypeDef{
 		baseType:     t,
@@ -26,7 +36,14 @@ func (f *File) NewTypeDef(name string, t Type) *TypeDef {
 		Ptr:          true,
 	}
 	f.AddWriterTo(td)
+	f.AddGenerators(td)
 	return td
+}
+
+func (td *TypeDef) Generate() error { return nil }
+func (td *TypeDef) Prepare() error {
+	td.baseType.RegisterImports(td.File().Imports)
+	return nil
 }
 
 func (td *TypeDef) WriteTo(w io.Writer) (int64, error) {
@@ -56,6 +73,10 @@ func (td *TypeDef) Kind() Kind {
 }
 func (td *TypeDef) Name() string {
 	return td.name
+}
+
+func (td *TypeDef) RegisterImports(i *Imports) {
+	i.AddRefImports(td.file.Package())
 }
 
 func (td *TypeDef) StructEmbedName() string {

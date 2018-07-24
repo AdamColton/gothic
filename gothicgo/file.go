@@ -20,7 +20,7 @@ type File struct {
 	name       string
 	code       []io.WriterTo
 	pkg        *Package
-	Writer     io.WriteCloser
+	Writer     io.Writer
 	Comment    string
 }
 
@@ -68,12 +68,15 @@ func (f *File) Generate() error {
 	code := buf.Bytes()
 	fmtCode, fmtErr := format.Source(code)
 
+	var closer io.Closer
 	wc := f.Writer
 	if wc == nil {
-		wc, err = f.open()
+		file, err := f.open()
 		if err != nil {
 			return errCtx(err, "Generate file %s/%s:", f.pkg.name, f.name)
 		}
+		wc = file
+		closer = file
 	}
 
 	if fmtErr == nil {
@@ -85,10 +88,15 @@ func (f *File) Generate() error {
 		}
 	}
 	if err != nil {
-		wc.Close()
+		if closer != nil {
+			closer.Close()
+		}
 		return errCtx(err, "Generate file %s/%s:", f.pkg.name, f.name)
 	}
-	return wc.Close()
+	if closer != nil {
+		return closer.Close()
+	}
+	return nil
 }
 
 // File creates a file within the package. The name should not include ".go"

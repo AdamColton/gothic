@@ -23,6 +23,14 @@ const (
 	TypeDefKind
 )
 
+type PrefixWriterTo interface {
+	PrefixWriteTo(io.Writer, Prefixer) (int64, error)
+}
+
+type RegisterImports interface {
+	RegisterImports(*Imports)
+}
+
 // The Type interface represents a type in Go. Name is the type without the
 // package, String is the type with the package and PrefixString takes a package name
 // and return the string representing the type with the package included.
@@ -30,7 +38,8 @@ const (
 // PackageName returns a string representing the package. Package will return
 // a *gothicgo.Package if the Type is part of the Gothic generation.
 type Type interface {
-	PrefixWriteTo(io.Writer, Prefixer) (int64, error)
+	PrefixWriterTo
+	RegisterImports
 	String() string
 	PackageRef() PackageRef
 	File() *File // TODO: Remove this
@@ -55,7 +64,7 @@ func (h HelpfulTypeWrapper) Ptr() Type                  { return PointerTo(h) }
 func (h HelpfulTypeWrapper) Slice() Type                { return SliceOf(h) }
 
 // temporary until String method is removed from type
-func typeToString(t Type, p Prefixer) string {
+func typeToString(t PrefixWriterTo, p Prefixer) string {
 	b := bufpool.Get()
 	t.PrefixWriteTo(b, p)
 	return bufpool.PutStr(b)

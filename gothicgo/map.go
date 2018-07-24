@@ -38,6 +38,11 @@ func (m *mapT) Kind() Kind             { return MapKind }
 func (m *mapT) Elem() Type             { return m.elem }
 func (m *mapT) Key() Type              { return m.key }
 
+func (m *mapT) RegisterImports(i *Imports) {
+	m.elem.RegisterImports(i)
+	m.key.RegisterImports(i)
+}
+
 // MapOf returns a MapType
 func MapOf(key, elem Type) MapType {
 	return &mapT{

@@ -26,6 +26,8 @@ func (b builtin) StructEmbedName() string {
 	return string(b)
 }
 
+func (b builtin) RegisterImports(i *Imports) {}
+
 // Built in Go types
 var (
 	BoolType           = HelpfulType(builtin("bool"))

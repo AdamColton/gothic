@@ -19,17 +19,17 @@ func (i istruct) Prefix(ref PackageRef) string {
 }
 
 func TestFieldString(t *testing.T) {
+	pkg := MustPackage("foo")
 	f := &Field{
 		nameType: NameType{
 			N: "bar",
-			T: PointerTo(DefStruct(MustPackageRef("foo"), "bar")),
+			T: PointerTo(DefStruct(pkg, "bar")),
 		},
 		Tags: make(map[string]string),
-		stct: istruct("foo"),
 	}
-	assert.Equal(t, "bar *bar", f.String())
+	file := pkg.File("foo")
+	assert.Equal(t, "bar *bar", typeToString(f, file))
 
-	f.stct = istruct("notFoo")
 	assert.Equal(t, "bar *foo.bar", f.String())
 
 	f.nameType.N = ""
@@ -50,7 +50,6 @@ func TestFieldMethods(t *testing.T) {
 			T: PointerTo(DefStruct(MustPackageRef("foo"), "bar")),
 		},
 		Tags: map[string]string{"key": "value"},
-		stct: istruct("foo"),
 	}
 
 	assert.Equal(t, "bar", f.Name())
@@ -70,19 +69,15 @@ func TestFieldMethods(t *testing.T) {
 }
 
 func TestStructString(t *testing.T) {
-	expected := `type test struct {
+	expected := `struct {
 	foo *foo.Foo
 	bar *foo.Bar
 	*foo.Glorp
 }`
 
 	foo := MustPackageRef("foo")
-	SetImportPath("")
-	p, err := NewPackage("test")
-	assert.NoError(t, err)
-	p.OutputPath = "test"
-	s, err := p.NewStruct("test")
-	assert.NoError(t, err)
+
+	s := NewStruct()
 	s.AddField("foo", PointerTo(DefStruct(foo, "Foo")))
 	s.AddField("bar", PointerTo(DefStruct(foo, "Bar")))
 	s.Embed(PointerTo(DefStruct(foo, "Glorp")))
@@ -90,115 +85,20 @@ func TestStructString(t *testing.T) {
 	assert.Equal(t, expected, s.String())
 }
 
-func TestImportString(t *testing.T) {
-	SetImportPath("")
-	p, err := NewPackage("test")
-	assert.NoError(t, err)
-	p.OutputPath = "test"
-	s, err := p.NewStruct("test")
-	assert.NoError(t, err)
-	timePkg := MustPackageRef("time")
-	s.AddField("time", DefStruct(timePkg, "Time"))
-	s.Prepare()
-
-	time, ok := s.file.Imports.refs[timePkg.String()]
-	assert.True(t, ok)
-	assert.Equal(t, "", time)
-	assert.Equal(t, "time", s.file.GetRefName(timePkg))
-}
-
 func TestWriteStruct(t *testing.T) {
-	expected := `// This code was generated from a Gothic Blueprint, DO NOT MODIFY
-
-package test
-
-import (
-	"time"
-)
-
-// test struct with comment, pointer fields and an embedded field
-type test struct {
-	time time.Time
-}
-`
-	SetImportPath("")
-	p, err := NewPackage("test")
-	assert.NoError(t, err)
-	p.OutputPath = "test"
-	s, err := p.NewStruct("test")
-	assert.NoError(t, err)
-	s.AddField("time", DefStruct(MustPackageRef("time"), "Time"))
-	s.Comment = "struct with comment, pointer fields and an embedded field"
-
-	wc := &closerBuf{&bytes.Buffer{}}
-	f := s.file
-	f.Writer = wc
-	f.Prepare()
-	f.Generate()
-
-	assert.Equal(t, expected, wc.String())
-}
-
-func TestMethod(t *testing.T) {
-	expected := `// This code was generated from a Gothic Blueprint, DO NOT MODIFY
-
-package test
-
-import (
-	"fmt"
-	"time"
-)
-
-type test struct {
-	time time.Time
-}
-
-// foo says Hi
-func (t *test) foo(name string) {
-	fmt.Println("Hi", name)
-}
-`
-	SetImportPath("")
-	p, err := NewPackage("test")
-	assert.NoError(t, err)
-	p.OutputPath = "test"
-	s, err := p.NewStruct("test")
-	assert.NoError(t, err)
+	s := NewStruct()
 	s.AddField("time", DefStruct(MustPackageRef("time"), "Time"))
 
-	m := s.NewMethod("foo", Arg("name", StringType))
-	m.Body = writeToString("fmt.Println(\"Hi\", name)")
-	m.AddRefImports(MustPackageRef("fmt"))
-	m.Comment = "says Hi"
+	buf := &bytes.Buffer{}
+	_, err := s.PrefixWriteTo(buf, DefaultPrefixer)
+	assert.NoError(t, err)
 
-	wc := &closerBuf{&bytes.Buffer{}}
-	f := s.file
-	f.Writer = wc
-	f.Prepare()
-	f.Generate()
-
-	assert.Equal(t, expected, wc.String())
+	assert.Contains(t, buf.String(), "struct {")
+	assert.Contains(t, buf.String(), "time time.Time")
+	assert.Contains(t, buf.String(), "}")
 }
 
 func TestDefStruct(t *testing.T) {
 	s := DefStruct(MustPackageRef("foo"), "Bar")
 	assert.Equal(t, "foo", s.PackageRef().String())
-}
-
-func TestStructType(t *testing.T) {
-	foo := MustPackageRef("foo")
-	SetImportPath("")
-	p, err := NewPackage("test")
-	assert.NoError(t, err)
-	p.OutputPath = "test"
-	s, err := p.NewStruct("test")
-	assert.NoError(t, err)
-	s.AddField("foo", PointerTo(DefStruct(foo, "Foo")))
-	s.AddField("bar", PointerTo(DefStruct(foo, "Bar")))
-	s.Embed(PointerTo(DefStruct(foo, "Glorp")))
-
-	var tp Type = s.Type()
-	assert.NotNil(t, tp)
-	var stp = s.Type()
-	assert.NotNil(t, stp)
 }

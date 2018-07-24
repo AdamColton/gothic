@@ -172,6 +172,15 @@ type fnT struct {
 	fn *Func
 }
 
+func (f *fnT) RegisterImports(i *Imports) {
+	for _, arg := range f.Args() {
+		arg.Type().RegisterImports(i)
+	}
+	for _, ret := range f.Rets() {
+		ret.Type().RegisterImports(i)
+	}
+}
+
 func (f *fnT) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)
 	sw.WriteString("func(")
