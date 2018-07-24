@@ -1,5 +1,10 @@
 package gothicgo
 
+import (
+	"github.com/adamcolton/gothic/gothicio"
+	"io"
+)
+
 // NameType is used for arguments and returns for function
 type NameType struct {
 	N string
@@ -43,4 +48,12 @@ func NmRet(name string, typ Type) NameType {
 		N: name,
 		T: typ,
 	}
+}
+
+func (n NameType) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	sw.WriteString(n.N)
+	sw.WriteRune(' ')
+	n.T.PrefixWriteTo(sw, p)
+	return sw.Rets()
 }

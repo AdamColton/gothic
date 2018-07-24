@@ -20,6 +20,7 @@ const (
 	UnknownKind
 	BuiltinKind
 	InterfaceKind
+	TypeDefKind
 )
 
 // The Type interface represents a type in Go. Name is the type without the
