@@ -12,7 +12,7 @@ type TypeDef struct {
 	name         string
 	file         *File
 	ReceiverName string
-	methods      map[string]*TypeDefMethod
+	methods      map[string]*Method
 	Ptr          bool
 }
 
@@ -31,7 +31,7 @@ func (f *File) NewTypeDef(name string, t Type) *TypeDef {
 		baseType:     t,
 		name:         name,
 		file:         f,
-		methods:      make(map[string]*TypeDefMethod),
+		methods:      make(map[string]*Method),
 		ReceiverName: strings.ToLower(string([]rune(name)[0])),
 		Ptr:          true,
 	}
@@ -84,8 +84,8 @@ func (td *TypeDef) StructEmbedName() string {
 }
 
 // NewMethod on the struct
-func (td *TypeDef) NewMethod(name string, args ...NameType) *TypeDefMethod {
-	m := &TypeDefMethod{
+func (td *TypeDef) NewMethod(name string, args ...NameType) *Method {
+	m := &Method{
 		typeDef: td,
 		Ptr:     td.Ptr,
 		Func:    NewFunc(td.File().Imports, name, args...),
@@ -97,34 +97,34 @@ func (td *TypeDef) NewMethod(name string, args ...NameType) *TypeDefMethod {
 }
 
 // Method gets a method by name
-func (td *TypeDef) Method(name string) (*TypeDefMethod, bool) {
+func (td *TypeDef) Method(name string) (*Method, bool) {
 	m, ok := td.methods[name]
 	return m, ok
 }
 
-// TypeDefMethod on a struct
-type TypeDefMethod struct {
+// Method on a struct
+type Method struct {
 	*Func
 	Ptr     bool
 	typeDef *TypeDef
 }
 
 // SetName of the method, also updates the method map in the struct.
-func (m *TypeDefMethod) SetName(name string) {
+func (m *Method) SetName(name string) {
 	delete(m.typeDef.methods, m.Func.Name())
 	m.Func.Sig.Name = name
 	m.typeDef.methods[name] = m
 }
 
 // String outputs the entire function as a string
-func (m *TypeDefMethod) String() string {
+func (m *Method) String() string {
 	buf := bufpool.Get()
 	m.WriteTo(buf)
 	return bufpool.PutStr(buf)
 }
 
-// WriteTo writes the TypeDefMethod to the writer
-func (m *TypeDefMethod) WriteTo(w io.Writer) (int64, error) {
+// WriteTo writes the Method to the writer
+func (m *Method) WriteTo(w io.Writer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
 	if m.Comment != "" {
 		NewComment(strings.Join([]string{m.Name(), m.Comment}, " ")).WriteTo(sum)
@@ -145,7 +145,7 @@ func (m *TypeDefMethod) WriteTo(w io.Writer) (int64, error) {
 	return sum.Sum, sum.Err
 }
 
-func (m *TypeDefMethod) Receiver() NameType {
+func (m *Method) Receiver() NameType {
 	n := NameType{
 		N: m.typeDef.ReceiverName,
 	}
