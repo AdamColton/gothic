@@ -31,6 +31,10 @@ type RegisterImports interface {
 	RegisterImports(*Imports)
 }
 
+type Namer interface {
+	ScopeName() string
+}
+
 // The Type interface represents a type in Go. Name is the type without the
 // package, String is the type with the package and PrefixString takes a package name
 // and return the string representing the type with the package included.

@@ -1,7 +1,6 @@
 package gothicgo
 
 import (
-	"fmt"
 	"github.com/adamcolton/gothic/bufpool"
 	"github.com/adamcolton/gothic/gothicio"
 	"io"
@@ -10,23 +9,12 @@ import (
 
 // Interface is used to generate an interface
 type Interface struct {
-	name    string
-	file    *File
-	methods []io.WriterTo
+	methods []PrefixWriterTo
 }
 
 // NewInterface adds a new interface to an existing file
-func (f *File) NewInterface(name string) (*Interface, error) {
-	if i, found := f.pkg.interfaces[name]; found {
-		return i, fmt.Errorf("Duplicate Interface")
-	}
-	i := &Interface{
-		name: name,
-		file: f,
-	}
-	f.pkg.interfaces[name] = i
-	f.AddGenerators(i)
-	return i, nil
+func NewInterface() *Interface {
+	return &Interface{}
 }
 
 // AddMethod to the interface
@@ -38,31 +26,6 @@ func (i *Interface) AddMethod(name string, args []Type, returns []Type, variadic
 		variadic: variadic,
 		ifc:      i,
 	})
-}
-
-// Prepare fulfills the generator interface
-func (i *Interface) Prepare() error { return nil }
-
-// Generate adds the interface to the file and fulfills the generator interface
-func (i *Interface) Generate() error {
-	i.file.AddWriterTo(i)
-	return nil
-}
-
-// WriteTo writes the Interface code to the writer
-func (i *Interface) WriteTo(w io.Writer) (int64, error) {
-	s := gothicio.NewSumWriter(w)
-	s.WriteString("type ")
-	s.WriteString(i.Name())
-	s.WriteString(" interface{")
-	gothicio.MultiWrite(s, i.methods, "\n\t")
-	if len(i.methods) > 0 {
-		s.WriteString("\n}\n\n")
-	} else {
-		s.WriteString("}\n\n")
-	}
-	s.Err = errCtx(s.Err, "While writing interface %s:", i.name)
-	return s.Sum, s.Err
 }
 
 func typeSliceToString(ts []Type, pre Prefixer, variadic bool) string {
@@ -83,27 +46,26 @@ func typeSliceToString(ts []Type, pre Prefixer, variadic bool) string {
 	return strings.Join(s, ", ")
 }
 
-// Name gets the interface name and fulfills the Type interface
-func (i *Interface) Name() string { return i.name }
-
-// SetName allows the name of the interface to be changed
-func (i *Interface) SetName(name string) { i.name = name }
-
 // String returns the interface package and name and fulfills the Type interface
 func (i *Interface) String() string {
-	pkg := ""
-	if i.file != nil && i.file.pkg != nil {
-		pkg = i.file.pkg.name + "."
-	}
-	return pkg + i.name
+	return typeToString(i, DefaultPrefixer)
 }
 
 // WriteTo writes the interface name and package if necessary.
 func (i *Interface) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
-	sw := gothicio.NewSumWriter(w)
-	sw.WriteString(pre.Prefix(i.file.pkg))
-	sw.WriteString(i.name)
-	return sw.Rets()
+	s := gothicio.NewSumWriter(w)
+	s.WriteString("interface {")
+	for _, m := range i.methods {
+		m.PrefixWriteTo(s, pre)
+		s.WriteString("\n\t")
+	}
+	if len(i.methods) > 0 {
+		s.WriteString("\n}")
+	} else {
+		s.WriteString("}")
+	}
+	s.Err = errCtx(s.Err, "While writing interface:")
+	return s.Sum, s.Err
 }
 
 func (i *Interface) RegisterImports(im *Imports) {
@@ -116,7 +78,7 @@ func (i *Interface) RegisterImports(im *Imports) {
 }
 
 // PackageRef for the package Interface is in, fulfills Type interface.
-func (i *Interface) PackageRef() PackageRef { return i.file.pkg }
+func (i *Interface) PackageRef() PackageRef { return nil }
 
 // File that the interface is in, fulfills Type interface.
 func (i *Interface) File() *File { return i.File() }
@@ -132,11 +94,11 @@ type interfaceMethod struct {
 	ifc      *Interface
 }
 
-func (im *interfaceMethod) WriteTo(w io.Writer) (int64, error) {
+func (im *interfaceMethod) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	s := gothicio.NewSumWriter(w)
 	s.WriteString(im.name)
 	s.WriteString("(")
-	s.WriteString(typeSliceToString(im.args, im.ifc.file.Imports, im.variadic))
+	s.WriteString(typeSliceToString(im.args, pre, im.variadic))
 	var end string
 	if l := len(im.rets); l > 1 {
 		s.WriteString(") (")
@@ -145,7 +107,7 @@ func (im *interfaceMethod) WriteTo(w io.Writer) (int64, error) {
 		s.WriteString(") ")
 		end = ""
 	}
-	s.WriteString(typeSliceToString(im.rets, im.ifc.file.Imports, false))
+	s.WriteString(typeSliceToString(im.rets, pre, false))
 	s.WriteString(end)
 	s.Err = errCtx(s.Err, "While writing interface method %s:", im.name)
 	return s.Rets()

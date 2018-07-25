@@ -44,12 +44,14 @@ func NewFunc(imp *Imports, name string, args ...NameType) *Func {
 func (f *File) NewFunc(name string, args ...NameType) *Func {
 	fn := NewFunc(f.Imports, name, args...)
 	fn.File = f
-	f.AddGenerators(fn)
+	f.AddWriterTo(fn)
 	return fn
 }
 
 // Name of the function
 func (f *Func) Name() string { return f.Sig.Name }
+
+func (f *Func) ScopeName() string { return f.Sig.Name }
 
 // Args returns the function args and fulfills FuncCaller
 func (f *Func) Args() []NameType { return f.Sig.Args }

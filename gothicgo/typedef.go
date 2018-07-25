@@ -1,6 +1,7 @@
 package gothicgo
 
 import (
+	"fmt"
 	"github.com/adamcolton/gothic/bufpool"
 	"github.com/adamcolton/gothic/gothicio"
 	"io"
@@ -22,11 +23,17 @@ type NewTypeDefiner interface {
 
 // NewStruct adds a Struct to a Package, the file for the struct is automatically
 // generated
-func (p *Package) NewTypeDef(name string, t Type) *TypeDef {
+func (p *Package) NewTypeDef(name string, t Type) (*TypeDef, error) {
+	if _, ok := p.names[name]; ok {
+		return nil, fmt.Errorf("Cannot define type %s in package %s; name already exists in scope", name, p.Name())
+	}
 	return p.File(name+".gothic").NewTypeDef(name, t)
 }
 
-func (f *File) NewTypeDef(name string, t Type) *TypeDef {
+func (f *File) NewTypeDef(name string, t Type) (*TypeDef, error) {
+	if _, ok := f.pkg.names[name]; ok {
+		return nil, fmt.Errorf("Cannot define type %s in package %s; name already exists in scope", name, f.pkg.Name())
+	}
 	td := &TypeDef{
 		baseType:     t,
 		name:         name,
@@ -36,11 +43,9 @@ func (f *File) NewTypeDef(name string, t Type) *TypeDef {
 		Ptr:          true,
 	}
 	f.AddWriterTo(td)
-	f.AddGenerators(td)
-	return td
+	return td, nil
 }
 
-func (td *TypeDef) Generate() error { return nil }
 func (td *TypeDef) Prepare() error {
 	td.baseType.RegisterImports(td.File().Imports)
 	return nil

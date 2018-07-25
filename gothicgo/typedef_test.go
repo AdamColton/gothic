@@ -11,7 +11,8 @@ func TestTypeDef(t *testing.T) {
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
 	f := p.File("testfile")
-	td := f.NewTypeDef("TypeDefTest", IntType)
+	td, err := f.NewTypeDef("TypeDefTest", IntType)
+	assert.NoError(t, err)
 	var tp Type = td
 	assert.NotNil(t, tp)
 
@@ -33,7 +34,8 @@ func TestImportString(t *testing.T) {
 	timePkg := MustPackageRef("time")
 	s.AddField("time", DefStruct(timePkg, "Time"))
 
-	td := p.NewTypeDef("TestTypeDefImports", s)
+	td, err := p.NewTypeDef("TestTypeDefImports", s)
+	assert.NoError(t, err)
 
 	assert.NoError(t, td.file.Prepare())
 
@@ -49,7 +51,8 @@ func TestMethod(t *testing.T) {
 
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
-	td := p.NewTypeDef("Test", s)
+	td, err := p.NewTypeDef("Test", s)
+	assert.NoError(t, err)
 
 	m := td.NewMethod("foo", Arg("name", StringType))
 	m.Body = writeToString("fmt.Println(\"Hi\", name)")

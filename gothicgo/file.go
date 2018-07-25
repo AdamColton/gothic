@@ -16,40 +16,45 @@ import (
 // io.WriteCloser, it will write to that instead
 type File struct {
 	*Imports
-	generators *gothic.Project
-	name       string
-	code       []io.WriterTo
-	pkg        *Package
-	Writer     io.Writer
-	Comment    string
+	name    string
+	code    []io.WriterTo
+	pkg     *Package
+	Writer  io.Writer
+	Comment string
 }
 
 // Prepare runs prepare on all the generators in the file
 func (f *File) Prepare() error {
-	err := f.generators.Prepare()
-	return errCtx(err, "Prepare file %s:", f.name)
+	for _, w := range f.code {
+		if p, ok := w.(gothic.Prepper); ok {
+			err := p.Prepare()
+			if err != nil {
+				return errCtx(err, "While preparing file %s:", f.name)
+			}
+		}
+	}
+	return nil
 }
 
-// AddGenerators to the file
-func (f *File) AddGenerators(generators ...gothic.Generator) {
-	f.generators.AddGenerators(generators...)
-}
-
-// AddWriterTo adds a WriterTo that will be invoked when the file is written,
-// but after Prepare and Generate have run.
-func (f *File) AddWriterTo(writerTo io.WriterTo) {
+// AddWriterTo adds a WriterTo that will be invoked when the file is written. If
+// the WriterTo fulfils gothic.Prepper then it's Prepare method will be called
+// while File.Prepare is called. If the WriterTo fulfills Namer, it's ScopeName
+// will be added to the package.
+func (f *File) AddWriterTo(writerTo io.WriterTo) error {
+	if n, ok := writerTo.(Namer); ok {
+		err := f.pkg.AddNamer(n)
+		if err != nil {
+			return errCtx(err, "File %s: ", f.name)
+		}
+	}
 	f.code = append(f.code, writerTo)
+	return nil
 }
 
 // Generate the file
 func (f *File) Generate() error {
 	f.Imports.ResolvePackages(f.Package().ImportResolver())
 	f.Imports.RemoveRef(f.pkg)
-
-	err := f.generators.Generate()
-	if err != nil {
-		return errCtx(err, "Generate file %s/%s:", f.pkg.name, f.name)
-	}
 
 	buf := bufpool.Get()
 	sw := gothicio.NewSumWriter(buf)
@@ -79,6 +84,7 @@ func (f *File) Generate() error {
 		closer = file
 	}
 
+	var err error
 	if fmtErr == nil {
 		_, err = wc.Write(fmtCode)
 	} else {
@@ -106,11 +112,10 @@ func (p *Package) File(name string) *File {
 		return file
 	}
 	f := &File{
-		Imports:    NewImports(p),
-		generators: gothic.New(),
-		name:       name,
-		pkg:        p,
-		Comment:    p.Comment,
+		Imports: NewImports(p),
+		name:    name,
+		pkg:     p,
+		Comment: p.Comment,
 	}
 	p.files[name] = f
 	return f

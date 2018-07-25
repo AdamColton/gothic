@@ -1,6 +1,7 @@
 package gothicgo
 
 import (
+	"fmt"
 	"github.com/adamcolton/gothic/gothicio"
 	"io"
 	"os"
@@ -15,9 +16,8 @@ type Package struct {
 	name       string
 	importPath string
 	OutputPath string
+	names      map[string]Namer
 	files      map[string]*File
-	structs    map[string]*Struct
-	interfaces map[string]*Interface
 	resolver   ImportResolver
 	Comment    string
 }
@@ -38,8 +38,7 @@ func NewPackage(name string) (*Package, error) {
 		importPath: importPath,
 		OutputPath: path.Join(OutputPath, name),
 		files:      make(map[string]*File),
-		structs:    make(map[string]*Struct),
-		interfaces: make(map[string]*Interface),
+		names:      make(map[string]Namer),
 		Comment:    DefaultComment,
 	}
 	packages.AddGenerators(pkg)
@@ -64,6 +63,15 @@ func (p *Package) Prepare() error {
 			return errCtx(err, "Prepare package %s", p.name)
 		}
 	}
+	return nil
+}
+
+func (p *Package) AddNamer(n Namer) error {
+	name := n.ScopeName()
+	if _, ok := p.names[name]; ok {
+		return fmt.Errorf("Name %s already exists in package %s", name, p.name)
+	}
+	p.names[name] = n
 	return nil
 }
 
