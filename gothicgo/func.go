@@ -15,6 +15,39 @@ type FuncSig struct {
 	Rets []NameType
 }
 
+func (f FuncSig) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	sw.WriteString("func")
+	if f.Name != "" {
+		sw.WriteRune(' ')
+		sw.WriteString(f.Name)
+	}
+	sw.WriteRune('(')
+	for i, arg := range f.Args {
+		if i != 0 {
+			sw.WriteString(", ")
+		}
+		arg.T.PrefixWriteTo(sw, pre)
+	}
+	lr := len(f.Rets)
+	if lr > 1 {
+		sw.WriteString(") (")
+	} else {
+		sw.WriteString(") ")
+	}
+	for i, ret := range f.Rets {
+		if i != 0 {
+			sw.WriteString(", ")
+		}
+		ret.T.PrefixWriteTo(sw, pre)
+	}
+
+	if lr > 1 {
+		sw.WriteString(")")
+	}
+	return sw.Sum, sw.Err
+}
+
 // Func represents a Go function.
 type Func struct {
 	*Imports
@@ -41,11 +74,10 @@ func NewFunc(imp *Imports, name string, args ...NameType) *Func {
 // NewFunc returns a new Func with File set and add the function to file's
 // generators so that when the file is generated, the func will be generated as
 // part of the file.
-func (f *File) NewFunc(name string, args ...NameType) *Func {
+func (f *File) NewFunc(name string, args ...NameType) (*Func, error) {
 	fn := NewFunc(f.Imports, name, args...)
 	fn.File = f
-	f.AddWriterTo(fn)
-	return fn
+	return fn, errCtx(f.AddWriterTo(fn), "Adding %s to %s", fn.Sig)
 }
 
 // Name of the function
@@ -184,31 +216,7 @@ func (f *fnT) RegisterImports(i *Imports) {
 }
 
 func (f *fnT) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
-	sw := gothicio.NewSumWriter(w)
-	sw.WriteString("func(")
-	for i, arg := range f.fn.Sig.Args {
-		if i != 0 {
-			sw.WriteString(", ")
-		}
-		arg.T.PrefixWriteTo(sw, pre)
-	}
-	lr := len(f.fn.Sig.Rets)
-	if lr > 1 {
-		sw.WriteString(") (")
-	} else {
-		sw.WriteString(") ")
-	}
-	for i, ret := range f.fn.Sig.Rets {
-		if i != 0 {
-			sw.WriteString(", ")
-		}
-		ret.T.PrefixWriteTo(sw, pre)
-	}
-
-	if lr > 1 {
-		sw.WriteString(")")
-	}
-	return sw.Sum, sw.Err
+	return f.fn.Sig.PrefixWriteTo(w, pre)
 }
 
 func (f *fnT) String() string {

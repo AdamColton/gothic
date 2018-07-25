@@ -70,7 +70,8 @@ func TestWriteFunc(t *testing.T) {
 	f := p.File("testFile")
 	f.Writer = wc
 
-	fn := f.NewFunc("Foo", Arg("name", StringType), Arg("code", IntType))
+	fn, err := f.NewFunc("Foo", Arg("name", StringType), Arg("code", IntType))
+	assert.NoError(t, err)
 	fn.Returns(Ret(PointerTo(DefStruct(MustPackageRef("test"), "Person"))))
 	fn.Body = writeToString("\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}")
 	fn.Variadic = true
@@ -91,7 +92,7 @@ func TestFuncType(t *testing.T) {
 
 	ft := f.Type()
 
-	assert.Equal(t, "func(string, int) *test.Person", ft.String())
+	assert.Equal(t, "func Foo(string, int) *test.Person", ft.String())
 }
 
 func TestFuncCall(t *testing.T) {
@@ -112,7 +113,8 @@ func TestFuncCall(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "test.myFn(Maggie, Bea)", fc.Call(pre, "Maggie", "Bea"))
 
-	fc = file.NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
+	fc, err = file.NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
+	assert.NoError(t, err)
 	assert.Equal(t, "Foo(adam, 32)", fc.Call(file, "adam", "32"))
 	assert.Equal(t, "test.Foo(adam, 32)", fc.Call(pre, "adam", "32"))
 }
