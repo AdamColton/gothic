@@ -6,10 +6,14 @@ import "fmt"
 Todo: Clean up state and error handling
 */
 
+type Prepper interface {
+	Prepare() error
+}
+
 // Generator is expected to write any relevant data to a persistant medium when
 // Generate is called
 type Generator interface {
-	Prepare() error
+	Prepper
 	Generate() error
 }
 
