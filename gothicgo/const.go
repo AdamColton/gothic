@@ -6,11 +6,15 @@ import (
 )
 
 type ConstIotaBlock struct {
-	Type    Type
-	Rows    []string
+	t       Type
+	rows    []string
 	Comment string
 	Iota    string
-	Prefixer
+	file    interface {
+		AddWriterTo(io.WriterTo) error
+		Package() *Package
+		Prefixer
+	}
 }
 
 const (
@@ -18,11 +22,17 @@ const (
 	ErrConstIotaBlockType  = errStr("ConstIotaBlock requires a type")
 )
 
+type constRow string
+
+func (c constRow) ScopeName() string {
+	return string(c)
+}
+
 func (cib *ConstIotaBlock) WriteTo(w io.Writer) (int64, error) {
-	if len(cib.Rows) == 0 {
+	if len(cib.rows) == 0 {
 		return 0, ErrEmptyConstIotaBlock
 	}
-	if cib.Type == nil {
+	if cib.t == nil {
 		return 0, ErrConstIotaBlockType
 	}
 	s := gothicio.NewSumWriter(w)
@@ -30,16 +40,16 @@ func (cib *ConstIotaBlock) WriteTo(w io.Writer) (int64, error) {
 		NewComment(cib.Comment).WriteTo(s)
 	}
 	s.WriteString("const (\n\t")
-	s.WriteString(cib.Rows[0])
+	s.WriteString(cib.rows[0])
 	s.WriteRune(' ')
-	cib.Type.PrefixWriteTo(s, cib)
+	cib.t.PrefixWriteTo(s, cib.file)
 	s.WriteString(" = ")
 	if cib.Iota == "" {
 		s.WriteString("iota")
 	} else {
 		s.WriteString(cib.Iota)
 	}
-	for _, r := range cib.Rows[1:] {
+	for _, r := range cib.rows[1:] {
 		s.WriteString("\n\t")
 		s.WriteString(r)
 	}
@@ -51,15 +61,23 @@ func (cib *ConstIotaBlock) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (cib *ConstIotaBlock) Append(rows ...string) {
-	cib.Rows = append(cib.Rows, rows...)
+	pkg := cib.file.Package()
+	for _, r := range rows {
+		pkg.AddNamer(constRow(r))
+	}
+	cib.rows = append(cib.rows, rows...)
 }
 
 func (f *File) ConstIotaBlock(t Type, rows ...string) *ConstIotaBlock {
 	cib := &ConstIotaBlock{
-		Type:     t,
-		Prefixer: f,
-		Rows:     rows,
+		t:    t,
+		file: f,
+		rows: rows,
 	}
 	f.AddWriterTo(cib)
+	pkg := f.Package()
+	for _, r := range rows {
+		pkg.AddNamer(constRow(r))
+	}
 	return cib
 }
