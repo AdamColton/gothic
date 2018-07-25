@@ -42,8 +42,7 @@ func (f *File) NewTypeDef(name string, t Type) (*TypeDef, error) {
 		ReceiverName: strings.ToLower(string([]rune(name)[0])),
 		Ptr:          true,
 	}
-	f.AddWriterTo(td)
-	return td, nil
+	return td, f.AddWriterTo(td)
 }
 
 func (td *TypeDef) Prepare() error {

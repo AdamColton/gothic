@@ -77,13 +77,15 @@ func NewFunc(imp *Imports, name string, args ...NameType) *Func {
 func (f *File) NewFunc(name string, args ...NameType) (*Func, error) {
 	fn := NewFunc(f.Imports, name, args...)
 	fn.File = f
-	return fn, errCtx(f.AddWriterTo(fn), "Adding %s to %s", fn.Sig)
+	return fn, errCtx(f.AddWriterTo(funcNamer{fn}), "Adding %s to %s", fn.Sig)
 }
+
+type funcNamer struct{ *Func }
+
+func (f funcNamer) ScopeName() string { return f.Sig.Name }
 
 // Name of the function
 func (f *Func) Name() string { return f.Sig.Name }
-
-func (f *Func) ScopeName() string { return f.Sig.Name }
 
 // Args returns the function args and fulfills FuncCaller
 func (f *Func) Args() []NameType { return f.Sig.Args }
@@ -168,12 +170,6 @@ func (f *Func) Prepare() error {
 			f.File.AddRefImports(ret.Type().PackageRef())
 		}
 	}
-	return nil
-}
-
-// Generate writes the function to the file
-func (f *Func) Generate() error {
-	f.File.AddWriterTo(f)
 	return nil
 }
 
