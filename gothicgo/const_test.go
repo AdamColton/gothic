@@ -11,13 +11,14 @@ func TestConstIotaBlock(t *testing.T) {
 	assert.NoError(t, err)
 	f := p.File("constIotaTestFile")
 
-	cib := f.ConstIotaBlock(Uint64Type,
+	cib, err := f.ConstIotaBlock(Uint64Type,
 		"Apple",
 		"Bannana",
 		"Cantaloup",
 		"Date",
 		"Elderberry",
 	)
+	assert.NoError(t, err)
 
 	buf := &bytes.Buffer{}
 	_, err = cib.WriteTo(buf)
@@ -33,4 +34,21 @@ func TestConstIotaBlock(t *testing.T) {
 `
 
 	assert.Equal(t, expected, buf.String())
+}
+
+func TestConstIotaBlockError(t *testing.T) {
+	p, err := NewPackage("constIotaErrorTestPkg")
+	assert.NoError(t, err)
+	f := p.File("constIotaErrorTestFile")
+	f.NewFunc("Apple")
+
+	cib, err := f.ConstIotaBlock(Uint64Type,
+		"Apple",
+		"Bannana",
+		"Cantaloup",
+		"Date",
+		"Elderberry",
+	)
+	assert.Error(t, err)
+	assert.Nil(t, cib)
 }

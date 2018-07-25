@@ -68,16 +68,20 @@ func (cib *ConstIotaBlock) Append(rows ...string) {
 	cib.rows = append(cib.rows, rows...)
 }
 
-func (f *File) ConstIotaBlock(t Type, rows ...string) *ConstIotaBlock {
+func (f *File) ConstIotaBlock(t Type, rows ...string) (*ConstIotaBlock, error) {
+	pkg := f.Package()
+	for _, r := range rows {
+		err := pkg.AddNamer(constRow(r))
+		if err != nil {
+			return nil, errCtx(err, "While creating iota block: ")
+		}
+	}
+
 	cib := &ConstIotaBlock{
 		t:    t,
 		file: f,
 		rows: rows,
 	}
 	f.AddWriterTo(cib)
-	pkg := f.Package()
-	for _, r := range rows {
-		pkg.AddNamer(constRow(r))
-	}
-	return cib
+	return cib, nil
 }
