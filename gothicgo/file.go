@@ -65,7 +65,7 @@ func (f *File) Generate() error {
 	sw.WriteString(f.pkg.name)
 	sw.WriteString("\n\n")
 	f.Imports.WriteTo(sw)
-	gothicio.MultiWrite(sw, f.code, "\n")
+	gothicio.MultiWrite(sw, f.code, "\n\n")
 	if sw.Err != nil {
 		errCtx(sw.Err, "Generate file %s/%s:", f.pkg.name, f.name)
 	}

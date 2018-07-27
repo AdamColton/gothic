@@ -10,8 +10,8 @@ import (
 func TestTypeString(t *testing.T) {
 	expected := "map[foo.bar]*person.Person"
 
-	fb := DefStruct(MustPackageRef("foo"), "bar")
-	p := PointerTo(DefStruct(MustPackageRef("person"), "Person"))
+	fb := NewExternalType(MustPackageRef("foo"), "bar")
+	p := PointerTo(NewExternalType(MustPackageRef("person"), "Person"))
 	tp := MapOf(fb, p)
 
 	assert.Equal(t, expected, tp.String())
@@ -32,20 +32,19 @@ func TestPadTest(t *testing.T) {
 func TestFuncTypeString(t *testing.T) {
 	expected := "func() string"
 
-	f := NewFunc(NewImports(PkgBuiltin()), "")
+	f := NewFuncSig("")
 	f.Returns(Ret(StringType))
-	tp := f.Type()
 
-	assert.Equal(t, expected, tp.String())
-	assert.Equal(t, FuncKind, tp.Kind())
+	assert.Equal(t, expected, f.String())
+	assert.Equal(t, FuncKind, f.Kind())
 }
 
 func TestMapToFuncTypeString(t *testing.T) {
 	expected := "map[string]func() string"
 
-	f := NewFunc(NewImports(PkgBuiltin()), "")
+	f := NewFuncSig("")
 	f.Returns(Ret(StringType))
-	tp := MapOf(StringType, f.Type())
+	tp := MapOf(StringType, f)
 
 	assert.Equal(t, expected, tp.String())
 
@@ -57,8 +56,8 @@ func TestMapToFuncTypeString(t *testing.T) {
 func TestMapType(t *testing.T) {
 	person := MustPackageRef("person")
 	foo := MustPackageRef("foo")
-	fb := DefStruct(foo, "bar")
-	p := PointerTo(DefStruct(person, "Person"))
+	fb := NewExternalType(foo, "bar")
+	p := PointerTo(NewExternalType(person, "Person"))
 	tp := MapOf(fb, p)
 
 	buf := &bytes.Buffer{}

@@ -2,8 +2,8 @@ package gothicgo
 
 import (
 	"bytes"
-	"github.com/adamcolton/gothic/gothicio"
 	"github.com/stretchr/testify/assert"
+	"io"
 	"testing"
 )
 
@@ -16,7 +16,9 @@ func TestTypeDef(t *testing.T) {
 	var tp Type = td
 	assert.NotNil(t, tp)
 
-	td.NewMethod("Test").Body = gothicio.StringWriterTo(`fmt.Println("Hello, world")`)
+	m, err := td.NewMethod("Test")
+	assert.NoError(t, err)
+	m.BodyString(`fmt.Println("Hello, world")`)
 	f.AddNameImports("fmt")
 
 	s := f.String()
@@ -32,7 +34,7 @@ func TestImportString(t *testing.T) {
 
 	s := NewStruct()
 	timePkg := MustPackageRef("time")
-	s.AddField("time", DefStruct(timePkg, "Time"))
+	s.AddField("time", NewExternalType(timePkg, "Time"))
 
 	td, err := p.NewTypeDef("TestTypeDefImports", s)
 	assert.NoError(t, err)
@@ -45,18 +47,31 @@ func TestImportString(t *testing.T) {
 	assert.Equal(t, "time", td.File().GetRefName(timePkg))
 }
 
+type testMethodBody struct{}
+
+func (b testMethodBody) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
+	bt := []byte(`fmt.Println("Hi", name)`)
+	w.Write(bt)
+	return int64(len(bt)), nil
+}
+
+func (b testMethodBody) RegisterImports(i *Imports) {
+	i.AddNameImports("fmt")
+}
+
 func TestMethod(t *testing.T) {
 	s := NewStruct()
-	s.AddField("time", DefStruct(MustPackageRef("time"), "Time"))
+	s.AddField("time", NewExternalType(MustPackageRef("time"), "Time"))
 
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
 	td, err := p.NewTypeDef("Test", s)
 	assert.NoError(t, err)
 
-	m := td.NewMethod("foo", Arg("name", StringType))
-	m.Body = writeToString("fmt.Println(\"Hi\", name)")
-	m.AddRefImports(MustPackageRef("fmt"))
+	m, err := td.NewMethod("foo", Arg("name", StringType))
+	assert.NoError(t, err)
+
+	m.Body = testMethodBody{}
 	m.Comment = "says Hi"
 
 	buf := &bytes.Buffer{}

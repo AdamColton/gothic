@@ -7,7 +7,6 @@ import (
 type builtin string
 
 func (b builtin) PackageRef() PackageRef     { return pkgBuiltin }
-func (b builtin) File() *File                { return nil }
 func (b builtin) Kind() Kind                 { return BuiltinKind }
 func (b builtin) AsRet() NameType            { return Ret(b) }
 func (b builtin) AsArg(name string) NameType { return Arg(name, b) }

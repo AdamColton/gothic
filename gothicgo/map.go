@@ -33,7 +33,6 @@ func (m *mapT) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 // PackageRef will always return PkgBuiltin() on Map. Packages of the key and element can
 // be inspected independantly
 func (m *mapT) PackageRef() PackageRef { return pkgBuiltin }
-func (m *mapT) File() *File            { return nil }
 func (m *mapT) Kind() Kind             { return MapKind }
 func (m *mapT) Elem() Type             { return m.elem }
 func (m *mapT) Key() Type              { return m.key }

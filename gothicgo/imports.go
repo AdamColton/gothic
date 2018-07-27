@@ -50,7 +50,7 @@ func NewImports(self PackageRef) *Imports {
 // different from Imports.self. The name will either be a blank string or will
 // end with a period.
 func (i *Imports) Prefix(ref PackageRef) string {
-	if i != nil && i.self != nil && ref.String() == i.self.String() {
+	if (i != nil && i.self != nil && ref.String() == i.self.String()) || ref.Name() == "" {
 		return ""
 	}
 	return i.GetRefName(ref) + "."

@@ -7,6 +7,10 @@ import (
 	"sort"
 )
 
+type StructEmbeddable interface {
+	StructEmbedName() string
+}
+
 // Struct represents a Go struct.
 type Struct struct {
 	fields     map[string]*Field
@@ -37,11 +41,6 @@ func (s *Struct) AsArg(name string) NameType { return Arg(name, s) }
 // AsNmRet is a helper for returning a pointer to the Struct in a funciton or
 // method as a named return.
 func (s *Struct) AsNmRet(name string) NameType { return NmRet(name, s) }
-
-// File getter. Receiver methods can be added to the file or the Package can be
-// accessed through the file and receivers can be added to other files in the
-// Package.
-func (s *Struct) File() *File { return nil }
 
 // PackageRef gets the name of the package.
 func (s *Struct) PackageRef() PackageRef { return nil }
@@ -172,57 +171,4 @@ func (f *Field) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	sum.Err = errCtx(sum.Err, "While writing field %s", f.nameType.N)
 
 	return sum.Sum, sum.Err
-}
-
-// StructType is just a wrapper around Type
-type StructType interface {
-	Type
-}
-
-type sT struct {
-	S interface {
-		Name() string
-		PackageRef() PackageRef
-		File() *File
-	}
-}
-
-func (s *sT) String() string         { return s.S.PackageRef().String() + "." + s.S.Name() }
-func (s *sT) File() *File            { return s.S.File() }
-func (s *sT) PackageRef() PackageRef { return s.S.PackageRef() }
-func (s *sT) Kind() Kind             { return StructKind }
-func (s *sT) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
-	sw := gothicio.NewSumWriter(w)
-	sw.WriteString(p.Prefix(s.S.PackageRef()))
-	sw.WriteString(s.S.Name())
-	return sw.Rets()
-}
-
-type structT struct {
-	ref  PackageRef
-	name string
-}
-
-func (s *structT) String() string { return s.ref.Name() + "." + s.name }
-func (s *structT) File() *File    { return nil }
-func (s *structT) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
-	sw := gothicio.NewSumWriter(w)
-	sw.WriteString(p.Prefix(s.ref))
-	sw.WriteString(s.name)
-	return sw.Rets()
-}
-func (s *structT) PackageRef() PackageRef { return s.ref }
-func (s *structT) Kind() Kind             { return StructKind }
-
-// DefStruct returns a StructType for a struct in a package.
-func DefStruct(ref PackageRef, name string) StructType {
-	return &structT{
-		ref:  ref,
-		name: name,
-	}
-}
-func (s *structT) StructEmbedName() string { return s.name }
-
-func (s *structT) RegisterImports(i *Imports) {
-	i.AddRefImports(s.ref)
 }

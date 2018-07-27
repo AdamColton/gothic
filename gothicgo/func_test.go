@@ -29,70 +29,91 @@ func TestNameTypeSliceToString(t *testing.T) {
 		Arg("last", StringType),
 		Arg("title", StringType),
 	}
-	assert.Equal(t, "first, middle, last, title string", nameTypeSliceToString(nil, s, false))
+
+	str, err := nameTypeSliceToString(nil, s, false)
+	assert.NoError(t, err)
+	assert.Equal(t, "first, middle, last, title string", str)
 
 	s = []NameType{
 		Arg("first", StringType),
 		Arg("age", IntType),
 	}
-	assert.Equal(t, "first string, age int", nameTypeSliceToString(nil, s, false))
+	str, err = nameTypeSliceToString(nil, s, false)
+	assert.NoError(t, err)
+	assert.Equal(t, "first string, age int", str)
 }
 
 func TestFuncString(t *testing.T) {
-	f := NewFunc(NewImports(PkgBuiltin()), "Foo", Arg("name", StringType), Arg("age", IntType))
-	f.Returns(Ret(PointerTo(DefStruct(PkgBuiltin(), "Person"))))
-	f.Body = writeToString("\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}")
+	pkg, err := NewPackage("testpkg")
+	assert.NoError(t, err)
+	file := pkg.File("testfile")
+	buf := &bytes.Buffer{}
+	file.Writer = buf
 
-	expected := "func Foo(name string, age int) *Person {\n\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}\n}\n\n"
-	got := f.String()
-	assert.Equal(t, expected, got)
+	f, err := file.NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
+	assert.NoError(t, err)
+	f.Returns(Ret(PointerTo(NewExternalType(PkgBuiltin(), "Person"))))
+	f.BodyString("\treturn &Person{\n\t\tName: name,\n\t\tAge: age,\n\t}")
+
+	file.Prepare()
+	file.Generate()
 }
 
 func TestFuncStringVariadic(t *testing.T) {
-	f := NewFunc(NewImports(PkgBuiltin()), "Foo", Arg("name", StringType), Arg("code", IntType))
-	f.Returns(Ret(PointerTo(DefStruct(PkgBuiltin(), "Person"))))
-	f.Body = writeToString("\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}")
+	pkg, err := NewPackage("testpkg")
+	assert.NoError(t, err)
+	file := pkg.File("testfile")
+	buf := &bytes.Buffer{}
+	file.Writer = buf
+
+	f, err := file.NewFunc("Foo", Arg("name", StringType), Arg("code", IntType))
+	assert.NoError(t, err)
+
+	person := PointerTo(NewExternalType(PkgBuiltin(), "Person"))
+	person.PrefixWriteTo(buf, file)
+
+	f.Returns(Ret(person))
+	f.BodyString("\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}")
 	f.Variadic = true
 
-	expected := "func Foo(name string, code ...int) *Person {\n\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}\n}\n\n"
-	got := f.String()
-	assert.Equal(t, expected, got)
+	file.Prepare()
+	file.Generate()
+
+	assert.Contains(t, buf.String(), "func Foo(name string, code ...int) *Person {")
 }
 
 func TestWriteFunc(t *testing.T) {
-	p, err := NewPackage("test")
+	pkg, err := NewPackage("testpkg")
 	assert.NoError(t, err)
-	p.OutputPath = "test"
-
-	wc := &writecloser{
-		Buffer: &bytes.Buffer{},
-	}
-	f := p.File("testFile")
-	f.Writer = wc
+	f := pkg.File("testfile")
+	buf := &bytes.Buffer{}
+	f.Writer = buf
 
 	fn, err := f.NewFunc("Foo", Arg("name", StringType), Arg("code", IntType))
 	assert.NoError(t, err)
-	fn.Returns(Ret(PointerTo(DefStruct(MustPackageRef("test"), "Person"))))
-	fn.Body = writeToString("\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}")
+	fn.Returns(Ret(PointerTo(NewExternalType(MustPackageRef("test"), "Person"))))
+	fn.BodyString("\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}")
 	fn.Variadic = true
 
 	f.Prepare()
 	f.Generate()
 
-	expected := "// This code was generated from a Gothic Blueprint, DO NOT MODIFY\n\npackage test\n\nfunc Foo(name string, code ...int) *Person {\n\treturn &Person{\n\t\tName: name,\n\t\tCode: code,\n\t}\n}\n"
-	assert.Equal(t, expected, wc.String())
+	assert.Contains(t, buf.String(), "func Foo(name string, code ...int) *test.Person {")
 }
 
 func TestFuncType(t *testing.T) {
-	f := NewFunc(NewImports(PkgBuiltin()), "Foo", Arg("name", StringType), Arg("age", IntType))
+	pkg, err := NewPackage("testpkg")
+	assert.NoError(t, err)
+	file := pkg.File("testfile")
+
+	f, err := file.NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
+	assert.NoError(t, err)
+
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
-	f.Returns(Ret(PointerTo(DefStruct(p, "Person"))))
-	f.File = p.File("testFile")
+	f.Returns(Ret(PointerTo(NewExternalType(p, "Person"))))
 
-	ft := f.Type()
-
-	assert.Equal(t, "func Foo(string, int) *test.Person", ft.String())
+	assert.Equal(t, "func Foo(string, int) *test.Person", f.Type().String())
 }
 
 func TestFuncCall(t *testing.T) {
@@ -100,30 +121,36 @@ func TestFuncCall(t *testing.T) {
 	assert.NoError(t, err)
 	file := p.File("test")
 
-	args := []NameType{
-		Ret(StringType),
-		Ret(StringType),
-	}
-	fc := FuncCall(p, "myFn", args, nil)
-	assert.Equal(t, "myFn(Maggie, Bea)", fc.Call(file, "Maggie", "Bea"))
-	assert.Equal(t, fc.Args(), args)
+	f, err := file.NewFunc("myFn", Arg("dog1", StringType), Arg("dog2", StringType))
+	assert.NoError(t, err)
+
+	assert.Equal(t, "myFn(Maggie, Bea)", f.Call(file, "Maggie", "Bea"))
 
 	p, err = NewPackage("foo")
 	pre := NewImports(p)
 	assert.NoError(t, err)
-	assert.Equal(t, "test.myFn(Maggie, Bea)", fc.Call(pre, "Maggie", "Bea"))
-
-	fc, err = file.NewFunc("Foo", Arg("name", StringType), Arg("age", IntType))
-	assert.NoError(t, err)
-	assert.Equal(t, "Foo(adam, 32)", fc.Call(file, "adam", "32"))
-	assert.Equal(t, "test.Foo(adam, 32)", fc.Call(pre, "adam", "32"))
+	assert.Equal(t, "test.myFn(Maggie, Bea)", f.Call(pre, "Maggie", "Bea"))
 }
 
 func TestFuncComment(t *testing.T) {
-	f := NewFunc(NewImports(PkgBuiltin()), "Foo")
-	f.Body = writeToString("")
+	pkg, err := NewPackage("testpkg")
+	assert.NoError(t, err)
+	file := pkg.File("testfile")
+
+	f, err := file.NewFunc("Foo")
+	assert.NoError(t, err)
 	f.Comment = "is a basic function with no args"
 
 	got := f.String()
 	assert.Contains(t, got, "// Foo is a basic function with no args")
+}
+
+func TestExternalFuncCall(t *testing.T) {
+	pkg := MustPackageRef("test")
+	f := NewExternalFunc(pkg, "myFn", Arg("dog1", StringType), Arg("dog2", StringType))
+
+	p, err := NewPackage("foo")
+	pre := NewImports(p)
+	assert.NoError(t, err)
+	assert.Equal(t, "test.myFn(Maggie, Bea)", f.Call(pre, "Maggie", "Bea"))
 }

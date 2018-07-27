@@ -27,6 +27,13 @@ type PrefixWriterTo interface {
 	PrefixWriteTo(io.Writer, Prefixer) (int64, error)
 }
 
+type IgnorePrefixer struct{ io.WriterTo }
+
+func (ip IgnorePrefixer) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
+	n, err := ip.WriteTo(w)
+	return int64(n), err
+}
+
 type RegisterImports interface {
 	RegisterImports(*Imports)
 }
@@ -46,7 +53,6 @@ type Type interface {
 	RegisterImports
 	String() string
 	PackageRef() PackageRef
-	File() *File // TODO: Remove this
 	Kind() Kind
 }
 
@@ -72,8 +78,4 @@ func typeToString(t PrefixWriterTo, p Prefixer) string {
 	b := bufpool.Get()
 	t.PrefixWriteTo(b, p)
 	return bufpool.PutStr(b)
-}
-
-type StructEmbeddable interface {
-	StructEmbedName() string
 }

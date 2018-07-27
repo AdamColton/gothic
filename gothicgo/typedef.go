@@ -15,6 +15,7 @@ type TypeDef struct {
 	ReceiverName string
 	methods      map[string]*Method
 	Ptr          bool
+	Comment      string
 }
 
 type NewTypeDefiner interface {
@@ -52,6 +53,9 @@ func (td *TypeDef) Prepare() error {
 
 func (td *TypeDef) WriteTo(w io.Writer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)
+	if td.Comment != "" {
+		NewComment(strings.Join([]string{td.name, td.Comment}, " ")).WriteTo(sw)
+	}
 	sw.WriteString("type ")
 	sw.WriteString(td.name)
 	sw.WriteRune(' ')
@@ -88,16 +92,25 @@ func (td *TypeDef) StructEmbedName() string {
 }
 
 // NewMethod on the struct
-func (td *TypeDef) NewMethod(name string, args ...NameType) *Method {
+func (td *TypeDef) NewMethod(name string, args ...NameType) (*Method, error) {
+	if name == "" {
+		return nil, errStr("Cannot have unnamed method")
+	}
+	fn := &Func{
+		FuncSig: NewFuncSig(name, args...),
+		file:    td.file,
+	}
 	m := &Method{
 		typeDef: td,
 		Ptr:     td.Ptr,
-		Func:    NewFunc(td.File().Imports, name, args...),
+		Func:    fn,
 	}
-	m.Func.File = td.File()
-	td.File().AddWriterTo(m)
+	err := td.File().AddWriterTo(m)
+	if err != nil {
+		return nil, err
+	}
 	td.methods[name] = m
-	return m
+	return m, nil
 }
 
 // Method gets a method by name
@@ -115,8 +128,8 @@ type Method struct {
 
 // SetName of the method, also updates the method map in the struct.
 func (m *Method) SetName(name string) {
-	delete(m.typeDef.methods, m.Func.Name())
-	m.Func.Sig.Name = name
+	delete(m.typeDef.methods, m.Func.Name)
+	m.Name = name
 	m.typeDef.methods[name] = m
 }
 
@@ -129,24 +142,46 @@ func (m *Method) String() string {
 
 // WriteTo writes the Method to the writer
 func (m *Method) WriteTo(w io.Writer) (int64, error) {
+	if m.Name == "" {
+		return 0, errStr("Cannot have unnamed method")
+	}
 	sum := gothicio.NewSumWriter(w)
 	if m.Comment != "" {
-		NewComment(strings.Join([]string{m.Name(), m.Comment}, " ")).WriteTo(sum)
+		NewComment(strings.Join([]string{m.Name, m.Comment}, " ")).WriteTo(sum)
 	}
+
 	sum.WriteString("func (")
-	m.Receiver().PrefixWriteTo(sum, m.typeDef.file)
+	sum.WriteString(m.typeDef.ReceiverName)
+	if m.Ptr {
+		sum.WriteString(" *")
+	} else {
+		sum.WriteRune(' ')
+	}
+	sum.WriteString(m.typeDef.Name())
 	sum.WriteString(") ")
-	sum.WriteString(m.Func.Name())
-	writeArgsRets(sum, m.typeDef.file, m.Func.Sig.Args, m.Func.Sig.Rets, m.Func.Variadic)
-	sum.WriteString("{\n\t")
+	sum.WriteString(m.Name)
+	sum.WriteRune('(')
+	var str string
+	str, sum.Err = nameTypeSliceToString(m.typeDef.file, m.Args, m.Variadic)
+	sum.WriteString(str)
+	end := " {\n\t"
+	if len(m.Rets) > 1 {
+		sum.WriteString(") (")
+		end = ") {\n\t"
+	} else {
+		sum.WriteString(") ")
+	}
+	str, sum.Err = nameTypeSliceToString(m.typeDef.file, m.Rets, false)
+	sum.WriteString(str)
+	sum.WriteString(end)
+
 	if m.Func.Body != nil {
-		m.Func.Body.WriteTo(sum)
+		m.Func.Body.PrefixWriteTo(sum, m.typeDef.file)
 	}
 	sum.WriteString("\n}")
+	sum.Err = errCtx(sum.Err, "While writing method %s:", m.Name)
 
-	sum.Err = errCtx(sum.Err, "While writing method %s:", m.Sig.Name)
-
-	return sum.Sum, sum.Err
+	return sum.Rets()
 }
 
 func (m *Method) Receiver() NameType {

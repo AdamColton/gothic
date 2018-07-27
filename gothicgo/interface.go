@@ -80,9 +80,6 @@ func (i *Interface) RegisterImports(im *Imports) {
 // PackageRef for the package Interface is in, fulfills Type interface.
 func (i *Interface) PackageRef() PackageRef { return nil }
 
-// File that the interface is in, fulfills Type interface.
-func (i *Interface) File() *File { return i.File() }
-
 // Kind returns InterfaceKind, fulfills Type interface.
 func (i *Interface) Kind() Kind { return InterfaceKind }
 
@@ -135,7 +132,6 @@ func (i *interfaceRef) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	return sw.Rets()
 }
 func (i *interfaceRef) PackageRef() PackageRef { return i.pkg }
-func (i *interfaceRef) File() *File            { return nil }
 func (i *interfaceRef) Kind() Kind             { return InterfaceKind }
 
 func (i *interfaceRef) RegisterImports(im *Imports) {
