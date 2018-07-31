@@ -195,5 +195,5 @@ func (i *Imports) WriteTo(w io.Writer) (int64, error) {
 	if sum.Err != nil {
 		sum.Err = errCtx(sum.Err, "While writing imports:")
 	}
-	return sum.Sum, sum.Err
+	return sum.Rets()
 }

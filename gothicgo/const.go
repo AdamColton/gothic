@@ -57,7 +57,7 @@ func (cib *ConstIotaBlock) WriteTo(w io.Writer) (int64, error) {
 	if s.Err != nil {
 		s.Err = errCtx(s.Err, "While writing ConstIotaBlock")
 	}
-	return s.Sum, s.Err
+	return s.Rets()
 }
 
 func (cib *ConstIotaBlock) Append(rows ...string) {

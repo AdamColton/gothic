@@ -60,6 +60,7 @@ func (td *TypeDef) WriteTo(w io.Writer) (int64, error) {
 	sw.WriteString(td.name)
 	sw.WriteRune(' ')
 	td.baseType.PrefixWriteTo(sw, td.file)
+	sw.Err = errCtx(sw.Err, "While writing type %s", td.name)
 	return sw.Rets()
 }
 
@@ -67,6 +68,7 @@ func (td *TypeDef) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)
 	sw.WriteString(p.Prefix(td.file.Package()))
 	sw.WriteString(td.name)
+	sw.Err = errCtx(sw.Err, "While writing type %s", td.name)
 	return sw.Rets()
 }
 func (td *TypeDef) String() string { return typeToString(td, DefaultPrefixer) }

@@ -112,7 +112,8 @@ func (s *Struct) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	} else {
 		sum.WriteString("}")
 	}
-	return sum.Sum, sum.Err
+	sum.Err = errCtx(sum.Err, "While writing struct")
+	return sum.Rets()
 }
 
 // String returns the struct as Go code
@@ -170,5 +171,5 @@ func (f *Field) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 
 	sum.Err = errCtx(sum.Err, "While writing field %s", f.nameType.N)
 
-	return sum.Sum, sum.Err
+	return sum.Rets()
 }

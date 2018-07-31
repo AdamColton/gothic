@@ -20,6 +20,7 @@ func (s *sliceT) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)
 	sw.WriteString("[]")
 	s.Type.PrefixWriteTo(sw, p)
+	sw.Err = errCtx(sw.Err, "While writing slice")
 	return sw.Rets()
 }
 func (s *sliceT) Kind() Kind { return SliceKind }

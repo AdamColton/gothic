@@ -55,5 +55,6 @@ func (n NameType) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	sw.WriteString(n.N)
 	sw.WriteRune(' ')
 	n.T.PrefixWriteTo(sw, p)
+	sw.Err = errCtx(sw.Err, "While writing NameType")
 	return sw.Rets()
 }

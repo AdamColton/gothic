@@ -27,6 +27,7 @@ func (m *mapT) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	m.key.PrefixWriteTo(sw, p)
 	sw.WriteRune(']')
 	m.elem.PrefixWriteTo(sw, p)
+	sw.Err = errCtx(sw.Err, "While writing map type")
 	return sw.Rets()
 }
 

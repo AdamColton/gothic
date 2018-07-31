@@ -67,7 +67,7 @@ func (f *File) Generate() error {
 	f.Imports.WriteTo(sw)
 	gothicio.MultiWrite(sw, f.code, "\n\n")
 	if sw.Err != nil {
-		errCtx(sw.Err, "Generate file %s/%s:", f.pkg.name, f.name)
+		return errCtx(sw.Err, "Generate file %s/%s:", f.pkg.name, f.name)
 	}
 
 	code := buf.Bytes()

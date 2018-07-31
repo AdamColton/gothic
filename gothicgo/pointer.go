@@ -20,6 +20,7 @@ func (p *pointerT) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)
 	sw.WriteRune('*')
 	p.Type.PrefixWriteTo(sw, pre)
+	sw.Err = errCtx(sw.Err, "While writing pointer type")
 	return sw.Rets()
 }
 func (p *pointerT) Kind() Kind { return PointerKind }

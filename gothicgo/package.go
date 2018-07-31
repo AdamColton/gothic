@@ -212,6 +212,7 @@ func (pv *packageVarRef) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error)
 	sw := gothicio.NewSumWriter(w)
 	sw.WriteString(pre.Prefix(pv.pkg))
 	sw.WriteString(pv.name)
+	sw.Err = errCtx(sw.Err, "While writing external package variable %s.%s", pv.pkg, pv.name)
 	return sw.Rets()
 }
 func (pv *packageVarRef) PackageRef() PackageRef { return pv.pkg }

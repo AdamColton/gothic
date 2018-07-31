@@ -18,6 +18,7 @@ func (e *ExternalType) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)
 	sw.WriteString(p.Prefix(e.Ref))
 	sw.WriteString(e.Name)
+	sw.Err = errCtx(sw.Err, "While writing external type %s", e.Name)
 	return sw.Rets()
 }
 func (e *ExternalType) PackageRef() PackageRef { return e.Ref }

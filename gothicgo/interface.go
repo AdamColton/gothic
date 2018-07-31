@@ -62,7 +62,7 @@ func (i *Interface) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 		s.WriteString("}")
 	}
 	s.Err = errCtx(s.Err, "While writing interface:")
-	return s.Sum, s.Err
+	return s.Rets()
 }
 
 func (i *Interface) RegisterImports(im *Imports) {
@@ -121,6 +121,7 @@ func (i *interfaceRef) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	sw := gothicio.NewSumWriter(w)
 	sw.WriteString(pre.Prefix(i.pkg))
 	sw.WriteString(i.name)
+	sw.Err = errCtx(sw.Err, "While writing external interface reference %s", i.name)
 	return sw.Rets()
 }
 func (i *interfaceRef) PackageRef() PackageRef { return i.pkg }

@@ -62,8 +62,9 @@ func (f FuncSig) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	str, sw.Err = nameTypeSliceToString(pre, f.Rets, false)
 	sw.WriteString(str)
 	sw.WriteString(end)
+	sw.Err = errCtx(sw.Err, "While writing function signature %s", f.Name)
 
-	return sw.Sum, sw.Err
+	return sw.Rets()
 }
 
 func (f FuncSig) Kind() Kind             { return FuncKind }
@@ -209,7 +210,7 @@ func (f *Func) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	}
 	s.WriteString("\n}")
 	s.Err = errCtx(s.Err, "While writing func %s", f.Name)
-	return s.Sum, s.Err
+	return s.Rets()
 }
 
 func (f *Func) BodyWriterTo(w io.WriterTo) {
