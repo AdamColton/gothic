@@ -18,15 +18,10 @@ func NewInterface() *Interface {
 }
 
 // AddMethod to the interface
-func (i *Interface) AddMethod(name string, args []NameType, returns []NameType, variadic bool) {
+func (i *Interface) AddMethod(funcSig FuncSig) {
 	i.methods = append(i.methods, &interfaceMethod{
-		funcSig: FuncSig{
-			Name:     name,
-			Args:     args,
-			Rets:     returns,
-			Variadic: variadic,
-		},
-		ifc: i,
+		funcSig: funcSig,
+		ifc:     i,
 	})
 }
 
