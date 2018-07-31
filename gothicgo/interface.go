@@ -9,7 +9,7 @@ import (
 
 // Interface is used to generate an interface
 type Interface struct {
-	methods []PrefixWriterTo
+	methods []*interfaceMethod
 }
 
 // NewInterface adds a new interface to an existing file
@@ -68,9 +68,7 @@ func (i *Interface) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 func (i *Interface) RegisterImports(im *Imports) {
 	//TODO: this is temporary, make it better
 	for _, m := range i.methods {
-		if r, ok := m.(RegisterImports); ok {
-			r.RegisterImports(im)
-		}
+		m.funcSig.RegisterImports(im)
 	}
 }
 
