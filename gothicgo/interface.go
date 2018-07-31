@@ -18,23 +18,25 @@ func NewInterface() *Interface {
 }
 
 // AddMethod to the interface
-func (i *Interface) AddMethod(name string, args []Type, returns []Type, variadic bool) {
+func (i *Interface) AddMethod(name string, args []NameType, returns []NameType, variadic bool) {
 	i.methods = append(i.methods, &interfaceMethod{
-		name:     name,
-		args:     args,
-		rets:     returns,
-		variadic: variadic,
-		ifc:      i,
+		funcSig: FuncSig{
+			Name:     name,
+			Args:     args,
+			Rets:     returns,
+			Variadic: variadic,
+		},
+		ifc: i,
 	})
 }
 
-func typeSliceToString(ts []Type, pre Prefixer, variadic bool) string {
-	l := len(ts)
+func typeSliceToString(nts []NameType, pre Prefixer, variadic bool) string {
+	l := len(nts)
 	var s = make([]string, l)
 	l--
 	buf := bufpool.Get()
-	for i, t := range ts {
-		t.PrefixWriteTo(buf, pre)
+	for i, nt := range nts {
+		nt.T.PrefixWriteTo(buf, pre)
 		if i == l && variadic {
 			s[i] = " ..." + buf.String()
 		} else {
@@ -84,29 +86,26 @@ func (i *Interface) PackageRef() PackageRef { return nil }
 func (i *Interface) Kind() Kind { return InterfaceKind }
 
 type interfaceMethod struct {
-	name     string
-	args     []Type
-	rets     []Type
-	variadic bool
-	ifc      *Interface
+	funcSig FuncSig
+	ifc     *Interface
 }
 
 func (im *interfaceMethod) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 	s := gothicio.NewSumWriter(w)
-	s.WriteString(im.name)
+	s.WriteString(im.funcSig.Name)
 	s.WriteString("(")
-	s.WriteString(typeSliceToString(im.args, pre, im.variadic))
+	s.WriteString(typeSliceToString(im.funcSig.Args, pre, im.funcSig.Variadic))
 	var end string
-	if l := len(im.rets); l > 1 {
+	if l := len(im.funcSig.Rets); l > 1 {
 		s.WriteString(") (")
 		end = ")"
 	} else {
 		s.WriteString(") ")
 		end = ""
 	}
-	s.WriteString(typeSliceToString(im.rets, pre, false))
+	s.WriteString(typeSliceToString(im.funcSig.Rets, pre, false))
 	s.WriteString(end)
-	s.Err = errCtx(s.Err, "While writing interface method %s:", im.name)
+	s.Err = errCtx(s.Err, "While writing interface method %s:", im.funcSig.Name)
 	return s.Rets()
 }
 

@@ -7,7 +7,7 @@ import (
 
 func TestInterface(t *testing.T) {
 	i := NewInterface()
-	i.AddMethod("String", nil, []Type{StringType}, false)
+	i.AddMethod("String", nil, []NameType{Ret(StringType)}, false)
 
 	s := i.String()
 	assert.Contains(t, s, "interface {")
