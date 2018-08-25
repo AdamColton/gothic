@@ -69,20 +69,20 @@ func TestFieldMethods(t *testing.T) {
 }
 
 func TestStructString(t *testing.T) {
-	expected := `struct {
-	foo *foo.Foo
-	bar *foo.Bar
-	*foo.Glorp
-}`
-
 	foo := MustPackageRef("foo")
 
 	s := NewStruct()
 	s.AddField("foo", PointerTo(NewExternalType(foo, "Foo")))
 	s.AddField("bar", PointerTo(NewExternalType(foo, "Bar")))
 	s.Embed(PointerTo(NewExternalType(foo, "Glorp")))
+	s.Embed(StringType)
 
-	assert.Equal(t, expected, s.String())
+	str := s.String()
+	assert.Contains(t, str, "struct {")
+	assert.Contains(t, str, "\tfoo *foo.Foo")
+	assert.Contains(t, str, "\tbar *foo.Bar")
+	assert.Contains(t, str, "\t*foo.Glorp")
+	assert.Contains(t, str, "\tstring\n")
 }
 
 func TestWriteStruct(t *testing.T) {
