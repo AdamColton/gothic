@@ -28,12 +28,18 @@ func (p *Package) NewTypeDef(name string, t Type) (*TypeDef, error) {
 	if _, ok := p.names[name]; ok {
 		return nil, fmt.Errorf("Cannot define type %s in package %s; name already exists in scope", name, p.Name())
 	}
+	if t.Kind() == InterfaceKind {
+		return nil, fmt.Errorf("Cannot create TypeDef on interface, use InterfaceTypeDef")
+	}
 	return p.File(name+".gothic").NewTypeDef(name, t)
 }
 
 func (f *File) NewTypeDef(name string, t Type) (*TypeDef, error) {
 	if _, ok := f.pkg.names[name]; ok {
 		return nil, fmt.Errorf("Cannot define type %s in package %s; name already exists in scope", name, f.pkg.Name())
+	}
+	if t.Kind() == InterfaceKind {
+		return nil, fmt.Errorf("Cannot create TypeDef on interface, use InterfaceTypeDef")
 	}
 	td := &TypeDef{
 		baseType:     t,
@@ -196,4 +202,81 @@ func (m *Method) Receiver() NameType {
 		n.T = m.typeDef
 	}
 	return n
+}
+
+type InterfaceTypeDef struct {
+	iface   *Interface
+	name    string
+	file    *File
+	Comment string
+}
+
+func (p *Package) NewInterfaceTypeDef(name string, iface *Interface) (*InterfaceTypeDef, error) {
+	if _, ok := p.names[name]; ok {
+		return nil, fmt.Errorf("Cannot define interface type %s in package %s; name already exists in scope", name, p.Name())
+	}
+	return p.File(name+".gothic").NewInterfaceTypeDef(name, iface)
+}
+
+func (f *File) NewInterfaceTypeDef(name string, iface *Interface) (*InterfaceTypeDef, error) {
+	if _, ok := f.pkg.names[name]; ok {
+		return nil, fmt.Errorf("Cannot define interface type %s in package %s; name already exists in scope", name, f.pkg.Name())
+	}
+	td := &InterfaceTypeDef{
+		iface: iface,
+		name:  name,
+		file:  f,
+	}
+	return td, f.AddWriterTo(td)
+}
+
+func (td *InterfaceTypeDef) Prepare() error {
+	td.iface.RegisterImports(td.File().Imports)
+	return nil
+}
+
+func (td *InterfaceTypeDef) WriteTo(w io.Writer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	if td.Comment != "" {
+		NewComment(strings.Join([]string{td.name, td.Comment}, " ")).WriteTo(sw)
+	}
+	sw.WriteString("type ")
+	sw.WriteString(td.name)
+	sw.WriteRune(' ')
+	td.iface.PrefixWriteTo(sw, td.file)
+	sw.Err = errCtx(sw.Err, "While writing interface type %s", td.name)
+	return sw.Rets()
+}
+
+func (td *InterfaceTypeDef) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	sw.WriteString(p.Prefix(td.file.Package()))
+	sw.WriteString(td.name)
+	sw.Err = errCtx(sw.Err, "While writing interface type %s", td.name)
+	return sw.Rets()
+}
+func (td *InterfaceTypeDef) String() string { return typeToString(td, DefaultPrefixer) }
+func (td *InterfaceTypeDef) PackageRef() PackageRef {
+	return td.file.Package()
+}
+func (td *InterfaceTypeDef) File() *File {
+	return td.file
+}
+func (td *InterfaceTypeDef) Kind() Kind {
+	return InterfaceTypeDefKind
+}
+func (td *InterfaceTypeDef) Name() string {
+	return td.name
+}
+
+func (td *InterfaceTypeDef) RegisterImports(i *Imports) {
+	i.AddRefImports(td.file.Package())
+}
+
+func (td *InterfaceTypeDef) StructEmbedName() string {
+	return td.name
+}
+
+func (td *InterfaceTypeDef) InterfaceEmbedName() string {
+	return td.name
 }

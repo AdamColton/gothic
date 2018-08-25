@@ -21,6 +21,7 @@ const (
 	BuiltinKind
 	InterfaceKind
 	TypeDefKind
+	InterfaceTypeDefKind
 )
 
 type PrefixWriterTo interface {

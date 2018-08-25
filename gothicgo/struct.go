@@ -7,7 +7,11 @@ import (
 	"sort"
 )
 
+// StructEmbeddable is used to embed a named type in a struct. The returned
+// string is what the field name will be. So when embedding *foo.Bar, the
+// StructEmbedName will be Bar.
 type StructEmbeddable interface {
+	Type
 	StructEmbedName() string
 }
 

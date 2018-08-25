@@ -12,6 +12,28 @@ func TestInterface(t *testing.T) {
 	i.AddMethod(f)
 
 	s := i.String()
-	assert.Contains(t, s, "interface {")
-	assert.Contains(t, s, "String() string")
+	assert.Contains(t, s, "interface {\n")
+	assert.Contains(t, s, "\tString() string")
+}
+
+func TestEmbed(t *testing.T) {
+	f := NewFuncSig("String")
+	f.Returns(StringType.AsRet())
+	i := NewInterface()
+	i.AddMethod(f)
+
+	pkg := MustPackage("testInterfaceEmbed")
+	td, err := pkg.NewInterfaceTypeDef("Stringer", i)
+	assert.NoError(t, err)
+
+	e := NewInterface()
+	e.Embed(td)
+	f2 := NewFuncSig("Int")
+	f2.Returns(IntType.AsRet())
+	e.AddMethod(f2)
+
+	s := e.String()
+	assert.Contains(t, s, "interface {\n")
+	assert.Contains(t, s, "\ttestInterfaceEmbed.Stringer")
+	assert.Contains(t, s, "\tInt() int")
 }

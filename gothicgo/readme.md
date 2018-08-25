@@ -84,7 +84,7 @@ unless you're writing a code Generator as opposed to using a code Generator.
 ### Types
 
 The next tricky bit is types. A lot of that has to do with the package problem.
-Each Type knows it's PackageRef. And the Type interface includes a RelStr method
+Each Type knows it's PackageRef. And the Type interface includes a PrefixString method
 that returns the type with the correct prefix.
 
 All instances of a type (such as a Struct or a Func) either fulfill the Type

@@ -7,9 +7,16 @@ import (
 	"strings"
 )
 
+// InterfaceEmbeddable allows one interface to be embedded in another
+type InterfaceEmbeddable interface {
+	Type
+	InterfaceEmbedName() string
+}
+
 // Interface is used to generate an interface
 type Interface struct {
-	methods []*interfaceMethod
+	methods  []*interfaceMethod
+	embedded []InterfaceEmbeddable
 }
 
 // NewInterface adds a new interface to an existing file
@@ -23,6 +30,10 @@ func (i *Interface) AddMethod(funcSig FuncSig) {
 		funcSig: funcSig,
 		ifc:     i,
 	})
+}
+
+func (i *Interface) Embed(embed InterfaceEmbeddable) {
+	i.embedded = append(i.embedded, embed)
 }
 
 func typeSliceToString(nts []NameType, pre Prefixer, variadic bool) string {
@@ -50,17 +61,21 @@ func (i *Interface) String() string {
 
 // WriteTo writes the interface name and package if necessary.
 func (i *Interface) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
+	if len(i.methods) == 0 && len(i.embedded) == 0 {
+		n, err := w.Write([]byte("interface{}"))
+		return int64(n), err
+	}
 	s := gothicio.NewSumWriter(w)
 	s.WriteString("interface {")
-	for _, m := range i.methods {
-		m.PrefixWriteTo(s, pre)
+	for _, e := range i.embedded {
 		s.WriteString("\n\t")
+		e.PrefixWriteTo(s, pre)
 	}
-	if len(i.methods) > 0 {
-		s.WriteString("\n}")
-	} else {
-		s.WriteString("}")
+	for _, m := range i.methods {
+		s.WriteString("\n\t")
+		m.PrefixWriteTo(s, pre)
 	}
+	s.WriteString("\n}")
 	s.Err = errCtx(s.Err, "While writing interface:")
 	return s.Rets()
 }
