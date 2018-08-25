@@ -64,3 +64,34 @@ func (e *ExternalFunc) Call(pre Prefixer, args ...string) string {
 	bufpool.Put(buf)
 	return str
 }
+
+type ExternalInterfaceType struct {
+	pkg  PackageRef
+	name string
+}
+
+func NewExternalInterfaceType(pkg PackageRef, name string) *ExternalInterfaceType {
+	return &ExternalInterfaceType{
+		pkg:  pkg,
+		name: name,
+	}
+}
+
+func (i *ExternalInterfaceType) String() string { return i.pkg.Name() + "." + i.name }
+func (i *ExternalInterfaceType) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
+	sw := gothicio.NewSumWriter(w)
+	sw.WriteString(pre.Prefix(i.pkg))
+	sw.WriteString(i.name)
+	sw.Err = errCtx(sw.Err, "While writing external interface reference %s", i.name)
+	return sw.Rets()
+}
+func (i *ExternalInterfaceType) PackageRef() PackageRef { return i.pkg }
+func (i *ExternalInterfaceType) Kind() Kind             { return InterfaceTypeDefKind }
+
+func (i *ExternalInterfaceType) RegisterImports(im *Imports) {
+	im.AddRefImports(i.pkg)
+}
+
+func (i *ExternalInterfaceType) InterfaceEmbedName() string {
+	return i.name
+}

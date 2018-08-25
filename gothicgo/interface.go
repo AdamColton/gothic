@@ -116,32 +116,3 @@ func (im *interfaceMethod) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, erro
 	s.Err = errCtx(s.Err, "While writing interface method %s:", im.funcSig.Name)
 	return s.Rets()
 }
-
-type interfaceRef struct {
-	pkg  PackageRef
-	name string
-}
-
-// DefInterface returns a reference to an interface in a package that fulfills
-// Type.
-func DefInterface(pkg PackageRef, name string) Type {
-	return &interfaceRef{
-		pkg:  pkg,
-		name: name,
-	}
-}
-
-func (i *interfaceRef) String() string { return i.pkg.Name() + "." + i.name }
-func (i *interfaceRef) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
-	sw := gothicio.NewSumWriter(w)
-	sw.WriteString(pre.Prefix(i.pkg))
-	sw.WriteString(i.name)
-	sw.Err = errCtx(sw.Err, "While writing external interface reference %s", i.name)
-	return sw.Rets()
-}
-func (i *interfaceRef) PackageRef() PackageRef { return i.pkg }
-func (i *interfaceRef) Kind() Kind             { return InterfaceKind }
-
-func (i *interfaceRef) RegisterImports(im *Imports) {
-	im.AddRefImports(i.pkg)
-}

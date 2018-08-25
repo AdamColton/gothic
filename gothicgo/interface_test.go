@@ -37,3 +37,18 @@ func TestEmbed(t *testing.T) {
 	assert.Contains(t, s, "\ttestInterfaceEmbed.Stringer")
 	assert.Contains(t, s, "\tInt() int")
 }
+
+func TestEmbedExternal(t *testing.T) {
+	i := NewExternalInterfaceType(MustPackageRef("foo/bar"), "Bar")
+
+	e := NewInterface()
+	e.Embed(i)
+	f2 := NewFuncSig("Int")
+	f2.Returns(IntType.AsRet())
+	e.AddMethod(f2)
+
+	s := e.String()
+	assert.Contains(t, s, "interface {\n")
+	assert.Contains(t, s, "\tbar.Bar")
+	assert.Contains(t, s, "\tInt() int")
+}
