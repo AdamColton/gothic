@@ -85,14 +85,12 @@ func (s *Struct) AddFields(fields ...PrefixWriterTo) error {
 			f = t
 		case NameType:
 			f = &Field{NameType: t}
+		case StructEmbeddable:
+			f = NewField("", t)
+		case InterfaceEmbeddable:
+			f = NewField("", t)
 		default:
-			if emb, ok := p.(StructEmbeddable); ok {
-				f = NewField("", emb)
-			} else if emb, ok := p.(InterfaceEmbeddable); ok {
-				f = NewField("", emb)
-			} else {
-				return fmt.Errorf("Given type cannot be converted to struct field")
-			}
+			return fmt.Errorf("Given type cannot be converted to struct field")
 		}
 
 		key := f.Name()
