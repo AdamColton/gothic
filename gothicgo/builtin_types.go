@@ -17,6 +17,10 @@ func (b builtin) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	return int64(n), err
 }
 
+func (b builtin) Named(name string) NameType {
+	return NameType{name, b}
+}
+
 func (b builtin) String() string {
 	return typeToString(b, DefaultPrefixer)
 }

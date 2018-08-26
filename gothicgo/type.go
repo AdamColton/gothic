@@ -65,6 +65,7 @@ type HelpfulType interface {
 	AsArg(name string) NameType
 	Ptr() Type
 	Slice() Type
+	Named(string) NameType
 }
 
 type HelpfulTypeWrapper struct{ Type }
@@ -73,6 +74,9 @@ func (h HelpfulTypeWrapper) AsRet() NameType            { return Ret(h) }
 func (h HelpfulTypeWrapper) AsArg(name string) NameType { return Arg(name, h) }
 func (h HelpfulTypeWrapper) Ptr() Type                  { return PointerTo(h) }
 func (h HelpfulTypeWrapper) Slice() Type                { return SliceOf(h) }
+func (h HelpfulTypeWrapper) Named(name string) NameType {
+	return NameType{name, h}
+}
 
 // temporary until String method is removed from type
 func typeToString(t PrefixWriterTo, p Prefixer) string {

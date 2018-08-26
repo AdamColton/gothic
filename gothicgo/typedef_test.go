@@ -31,10 +31,11 @@ func TestTypeDef(t *testing.T) {
 func TestImportString(t *testing.T) {
 	p, err := NewPackage("test")
 	assert.NoError(t, err)
-
-	s := NewStruct()
 	timePkg := MustPackageRef("time")
-	s.AddField("time", NewExternalType(timePkg, "Time"))
+
+	s := NewStruct(
+		NameType{"time", NewExternalType(timePkg, "Time")},
+	)
 
 	td, err := p.NewTypeDef("TestTypeDefImports", s)
 	assert.NoError(t, err)
@@ -60,8 +61,9 @@ func (b testMethodBody) RegisterImports(i *Imports) {
 }
 
 func TestMethod(t *testing.T) {
-	s := NewStruct()
-	s.AddField("time", NewExternalType(MustPackageRef("time"), "Time"))
+	s := NewStruct(
+		NameType{"time", NewExternalType(MustPackageRef("time"), "Time")},
+	)
 
 	p, err := NewPackage("test")
 	assert.NoError(t, err)

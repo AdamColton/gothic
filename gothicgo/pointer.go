@@ -9,6 +9,7 @@ import (
 type PointerType interface {
 	Type
 	Elem() Type
+	Named(string) NameType
 }
 
 type pointerT struct {
@@ -25,6 +26,9 @@ func (p *pointerT) PrefixWriteTo(w io.Writer, pre Prefixer) (int64, error) {
 }
 func (p *pointerT) Kind() Kind { return PointerKind }
 func (p *pointerT) Elem() Type { return p.Type }
+func (p *pointerT) Named(name string) NameType {
+	return NameType{name, p}
+}
 
 // PointerTo returns a PointerType to the underlying type.
 func PointerTo(t Type) PointerType {

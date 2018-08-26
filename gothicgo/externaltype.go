@@ -39,6 +39,10 @@ func (e *ExternalType) RegisterImports(i *Imports) {
 	i.AddRefImports(e.Ref)
 }
 
+func (e *ExternalType) Named(name string) NameType {
+	return NameType{name, e}
+}
+
 type ExternalFunc struct {
 	Ref PackageRef
 	FuncSig

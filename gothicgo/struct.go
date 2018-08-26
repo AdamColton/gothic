@@ -5,6 +5,7 @@ import (
 	"github.com/adamcolton/gothic/gothicio"
 	"io"
 	"sort"
+	"strings"
 )
 
 // StructEmbeddable is used to embed a named type in a struct. The returned
@@ -22,10 +23,12 @@ type Struct struct {
 }
 
 // MustStruct adds a new Struct to an existing file and panics if it fails
-func NewStruct() *Struct {
-	return &Struct{
+func NewStruct(fields ...PrefixWriterTo) *Struct {
+	s := &Struct{
 		fields: make(map[string]*Field),
 	}
+	s.AddFields(fields...)
+	return s
 }
 
 // Ptr returns an object that fulfills the Type interface for a pointer to this
@@ -74,33 +77,41 @@ func (s *Struct) FieldCount() int {
 }
 
 // AddField to the struct
-func (s *Struct) AddField(name string, typ Type) (*Field, error) {
-	key := name
-	if name == "" {
-		if emb, ok := typ.(StructEmbeddable); ok {
-			key = emb.StructEmbedName()
-		} else {
-			return nil, fmt.Errorf("Cannot Embed Type: ", typ.String())
+func (s *Struct) AddFields(fields ...PrefixWriterTo) error {
+	for _, p := range fields {
+		var f *Field
+		switch t := p.(type) {
+		case *Field:
+			f = t
+		case NameType:
+			f = &Field{NameType: t}
+		default:
+			if emb, ok := p.(StructEmbeddable); ok {
+				f = NewField("", emb)
+			} else if emb, ok := p.(InterfaceEmbeddable); ok {
+				f = NewField("", emb)
+			} else {
+				return fmt.Errorf("Given type cannot be converted to struct field")
+			}
 		}
+
+		key := f.Name()
+		if key == "" {
+			return fmt.Errorf("Field must either be named or type must be StructEmbeddable or InterfaceEmbeddable")
+		}
+		if _, exists := s.fields[key]; exists {
+			return fmt.Errorf("Field %s already exists in struct", key)
+		}
+		s.fields[key] = f
+		s.fieldOrder = append(s.fieldOrder, key)
 	}
-	if f, exists := s.fields[key]; exists {
-		return f, fmt.Errorf("Field %s already exists in stuct", key)
-	}
-	f := &Field{
-		nameType: NameType{
-			N: name,
-			T: typ,
-		},
-		Tags: make(map[string]string),
-	}
-	s.fields[key] = f
-	s.fieldOrder = append(s.fieldOrder, key)
-	return f, nil
+	return nil
 }
 
 // Embed a type as a field
-func (s *Struct) Embed(typ Type) (*Field, error) {
-	return s.AddField("", typ)
+func (s *Struct) Embed(typ StructEmbeddable) (*Field, error) {
+	f := NewField("", typ)
+	return f, s.AddFields(f)
 }
 
 // WriteTo writes the Struct to the writer
@@ -128,29 +139,71 @@ func (s *Struct) String() string {
 // Field is a struct field. Tags follows the convention of `key1:"value1"
 // key2:"value2"`. If no value is defined only the key is printed.
 type Field struct {
-	nameType NameType
-	Tags     map[string]string
+	NameType
+	Tags map[string]string
 }
 
-// Name of the field. For an embedded field, this will be an empty string.
-func (f *Field) Name() string { return f.nameType.Name() }
+func NewField(name string, typ Type, tags ...string) *Field {
+	var tagMap map[string]string
+	if len(tags) > 0 {
+		if len(tags)%2 == 1 {
+			tags = append(tags, "")
+		}
+		tagMap = make(map[string]string, len(tags)/2)
+		for i := 0; i < len(tags); i += 2 {
+			tagMap[tags[i]] = tags[i+1]
+		}
+	}
+	return &Field{
+		NameType: NameType{name, typ},
+		Tags:     tagMap,
+	}
+}
 
-// Type of the field
-func (f *Field) Type() Type { return f.nameType.Type() }
+func (f *Field) Name() string {
+	if f.N != "" {
+		return f.N
+	}
+	if emb, ok := f.T.(StructEmbeddable); ok {
+		return emb.StructEmbedName()
+	}
+	if emb, ok := f.T.(InterfaceEmbeddable); ok {
+		return emb.InterfaceEmbedName()
+	}
+	return ""
+}
 
 // String returns Go code for the field
 func (f *Field) String() string {
 	return typeToString(f, DefaultPrefixer)
 }
 
+func (f *Field) AddTag(key, value string) {
+	if f.Tags == nil {
+		f.Tags = map[string]string{
+			key: value,
+		}
+		return
+	}
+	if s, ok := f.Tags[key]; ok {
+		f.Tags[key] = s + ";" + value
+		return
+	}
+	f.Tags[key] = value
+}
+
 // WriteTo writes the Field to the writer
 func (f *Field) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 	sum := gothicio.NewSumWriter(w)
-	if name := f.Name(); name != "" {
-		sum.WriteString(name)
+	if f.N != "" {
+		sum.WriteString(f.N)
 		sum.WriteString(" ")
 	}
-	f.Type().PrefixWriteTo(sum, p)
+	indentWriter := gothicio.ReplacerWriter{
+		Writer:   sum,
+		Replacer: strings.NewReplacer("\n", "\n\t"),
+	}
+	f.Type().PrefixWriteTo(indentWriter, p)
 
 	if len(f.Tags) > 0 {
 		sum.WriteString(" `")
@@ -173,7 +226,7 @@ func (f *Field) PrefixWriteTo(w io.Writer, p Prefixer) (int64, error) {
 		sum.WriteString("`")
 	}
 
-	sum.Err = errCtx(sum.Err, "While writing field %s", f.nameType.N)
+	sum.Err = errCtx(sum.Err, "While writing field %s", f.Name())
 
 	return sum.Rets()
 }

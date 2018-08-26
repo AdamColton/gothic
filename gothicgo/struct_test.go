@@ -21,35 +21,29 @@ func (i istruct) Prefix(ref PackageRef) string {
 func TestFieldString(t *testing.T) {
 	pkg := MustPackage("foo")
 	f := &Field{
-		nameType: NameType{
-			N: "bar",
-			T: PointerTo(NewExternalType(pkg, "bar")),
-		},
-		Tags: make(map[string]string),
+		NameType: NameType{"bar", PointerTo(NewExternalType(pkg, "bar"))},
+		Tags:     make(map[string]string),
 	}
 	file := pkg.File("foo")
 	assert.Equal(t, "bar *bar", typeToString(f, file))
 
 	assert.Equal(t, "bar *foo.bar", f.String())
 
-	f.nameType.N = ""
+	f.N = ""
 	assert.Equal(t, "*foo.bar", f.String())
 
 	f.Tags["someKey"] = "someValue"
 	assert.Equal(t, "*foo.bar `someKey:\"someValue\"`", f.String())
 
-	f.nameType.N = "glorp"
+	f.N = "glorp"
 	assert.Equal(t, "glorp *foo.bar `someKey:\"someValue\"`", f.String())
 
 }
 
 func TestFieldMethods(t *testing.T) {
 	f := &Field{
-		nameType: NameType{
-			N: "bar",
-			T: PointerTo(NewExternalType(MustPackageRef("foo"), "bar")),
-		},
-		Tags: map[string]string{"key": "value"},
+		NameType: NameType{"bar", PointerTo(NewExternalType(MustPackageRef("foo"), "bar"))},
+		Tags:     map[string]string{"key": "value"},
 	}
 
 	assert.Equal(t, "bar", f.Name())
@@ -71,11 +65,12 @@ func TestFieldMethods(t *testing.T) {
 func TestStructString(t *testing.T) {
 	foo := MustPackageRef("foo")
 
-	s := NewStruct()
-	s.AddField("foo", PointerTo(NewExternalType(foo, "Foo")))
-	s.AddField("bar", PointerTo(NewExternalType(foo, "Bar")))
-	s.Embed(PointerTo(NewExternalType(foo, "Glorp")))
-	s.Embed(StringType)
+	s := NewStruct(
+		PointerTo(NewExternalType(foo, "Foo")).Named("foo"),
+		PointerTo(NewExternalType(foo, "Bar")).Named("bar"),
+		PointerTo(NewExternalType(foo, "Glorp")),
+		StringType,
+	)
 
 	str := s.String()
 	assert.Contains(t, str, "struct {")
@@ -86,8 +81,9 @@ func TestStructString(t *testing.T) {
 }
 
 func TestWriteStruct(t *testing.T) {
-	s := NewStruct()
-	s.AddField("time", NewExternalType(MustPackageRef("time"), "Time"))
+	s := NewStruct(
+		NewExternalType(MustPackageRef("time"), "Time").Named("time"),
+	)
 
 	buf := &bytes.Buffer{}
 	_, err := s.PrefixWriteTo(buf, DefaultPrefixer)
@@ -101,4 +97,22 @@ func TestWriteStruct(t *testing.T) {
 func TestNewExternalType(t *testing.T) {
 	s := NewExternalType(MustPackageRef("foo"), "Bar")
 	assert.Equal(t, "foo", s.PackageRef().String())
+}
+
+func TestStructInStruct(t *testing.T) {
+	s1 := NewStruct(
+		StringType.Named("Name"),
+		IntType.Named("Age"),
+	)
+
+	s2 := NewStruct(
+		StringType.Named("Role"),
+		NameType{"Person", s1},
+	)
+
+	s := s2.String()
+	assert.Contains(t, s, "\tRole string")
+	assert.Contains(t, s, "\tPerson struct {")
+	assert.Contains(t, s, "\t\tName string")
+	assert.Contains(t, s, "\t\tAge int")
 }
