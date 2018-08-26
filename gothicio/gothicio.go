@@ -3,6 +3,7 @@ package gothicio
 import (
 	"bytes"
 	"io"
+	"strings"
 )
 
 // StringWriter is the interface that wraps the WriteString method
@@ -44,6 +45,15 @@ func (s *SumWriter) Write(b []byte) (int, error) {
 
 func (s *SumWriter) Rets() (int64, error) {
 	return s.Sum, s.Err
+}
+
+type ReplacerWriter struct {
+	Writer   io.Writer
+	Replacer *strings.Replacer
+}
+
+func (rw ReplacerWriter) Write(b []byte) (int, error) {
+	return rw.Writer.Write([]byte(rw.Replacer.Replace(string(b))))
 }
 
 // MultiWrite takes a Writer and a slice of WriterTos and passes the Writer into
